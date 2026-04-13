@@ -164,65 +164,16 @@ export default function Home() {
   );
 }
 
-// ── Call Gemini directly from browser (no serverless timeout) ──
+// ── Generate plan via server-side API route (avoids CORS issues) ──
 async function callGeminiDirectly(profile) {
-  const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!key) throw new Error("API key missing — add NEXT_PUBLIC_GEMINI_API_KEY in Vercel settings and redeploy");
-
-  const days     = parseInt(profile.trainingDays) || 4;
-  const injuries = (profile.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
-  const equip    = (profile.equipment || []).slice(0, 5).join(", ") || "bodyweight";
-  const diet     = (profile.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "none";
-  const loc      = (profile.workoutLocation || []).join("/") || "gym";
-  const goal     = { fat_loss:"fat loss", muscle_gain:"muscle gain", maintain:"maintain" }[profile.primaryGoal] || "maintain";
-  const calNote  = profile.primaryGoal === "fat_loss" ? "300kcal deficit" : profile.primaryGoal === "muscle_gain" ? "300kcal surplus" : "maintenance calories";
-
-  const prompt = `You are a fitness coach. Return ONLY a JSON object, no markdown, no explanation.
-
-User: ${profile.age}yr ${profile.gender}, ${profile.weight}${profile.weightUnit}, ${profile.height}${profile.heightUnit}, ${profile.fitnessLevel || "beginner"}, goal: ${goal}, ${days} training days/week, location: ${loc}, equipment: ${equip}, injuries: ${injuries}, diet: ${diet}, sleep: ${profile.sleepHours || "7h"}, stress: ${profile.stressLevel || "medium"}, job: ${profile.jobType || "sedentary"}.
-
-Generate exactly 7 days (${days} workouts, ${7 - days} rest). Only use: ${equip}. Avoid exercises stressing: ${injuries}. Calories: ${calNote}. Respect diet: ${diet}.
-
-Return this exact JSON with all 7 days:
-{"weekPlan":[{"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push Day","muscleGroups":"Chest, Shoulders","estimatedDuration":"45 min","exercises":[{"name":"Push-up","sets":3,"reps":"12","restSeconds":60,"notes":""}]},{"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}],"nutrition":{"dailyCalories":2200,"macros":{"protein":160,"carbs":220,"fat":70},"meals":{"breakfast":{"name":"Protein Oats","calories":450,"protein":32,"carbs":50,"fat":10,"ingredients":["80g oats","1 scoop whey","1 banana","200ml milk"],"instructions":"Cook oats with milk, stir in protein off heat, top with banana."},"lunch":{"name":"Chicken Rice Bowl","calories":600,"protein":48,"carbs":65,"fat":12,"ingredients":["180g chicken breast","150g white rice","vegetables","olive oil"],"instructions":"Grill chicken, cook rice, steam veg, serve together."},"dinner":{"name":"Salmon Sweet Potato","calories":650,"protein":42,"carbs":58,"fat":20,"ingredients":["180g salmon","200g sweet potato","mixed salad","lemon"],"instructions":"Bake salmon 200C 18min, roast diced potato 25min."},"snacks":[{"name":"Greek Yogurt Berries","calories":180,"protein":15,"carbs":18,"fat":3,"ingredients":["200g Greek yogurt","100g berries","honey"],"instructions":"Mix and serve cold."}]},"nutritionNotes":"Note specific to this user."},"coachNote":"One coaching note for this specific user."}`;
-
-  const errors = [];
-
-  for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-preview-04-17"]) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: 2500 },
-        }),
-      });
-
-      const data = await r.json();
-
-      if (!r.ok) {
-        const msg = `${model}: HTTP ${r.status} — ${data?.error?.message || JSON.stringify(data).slice(0, 150)}`;
-        errors.push(msg);
-        continue;
-      }
-
-      const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-      if (!text) {
-        errors.push(`${model}: empty response (finishReason: ${data?.candidates?.[0]?.finishReason})`);
-        continue;
-      }
-
-      const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-      return JSON.parse(clean);
-
-    } catch (e) {
-      errors.push(`${model}: ${e.message}`);
-    }
-  }
-
-  throw new Error("Plan generation failed:\n" + errors.join("\n"));
+  const r = await fetch("/api/generate-plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data?.error || `HTTP ${r.status}`);
+  return data;
 }
 
 // ── Generating Screen — saves profile THEN navigates ──
