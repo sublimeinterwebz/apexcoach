@@ -1,6 +1,6 @@
 import "../styles/globals.css";
 import Head from "next/head";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 
@@ -8,24 +8,39 @@ const PUBLIC_ROUTES = ["/"];
 
 function RouteGuard({ children }) {
   const { user, profile, loading } = useAuth();
-  const router = useRouter();
+  const router   = useRouter();
+  const didRoute = useRef(false);
 
   useEffect(() => {
+    // Wait until BOTH auth and profile are fully resolved
     if (loading) return;
-    const isPublic = PUBLIC_ROUTES.includes(router.pathname);
+
+    const isPublic     = PUBLIC_ROUTES.includes(router.pathname);
+    const isOnboarded  = profile?.onboardingComplete === true;
 
     if (!user && !isPublic) {
-      // Not signed in — send to welcome
-      router.replace("/");
-    } else if (user && isPublic && profile?.onboardingComplete) {
-      // Signed in + onboarded — skip welcome, go to dashboard
-      router.replace("/dashboard");
-    } else if (user && !isPublic && !profile?.onboardingComplete) {
-      // Signed in but NOT onboarded — send to onboarding
-      router.replace("/");
+      // Not signed in → welcome
+      if (!didRoute.current) { didRoute.current = true; router.replace("/"); }
+      return;
     }
+
+    if (user && isPublic && isOnboarded) {
+      // Signed in + done onboarding → dashboard
+      if (!didRoute.current) { didRoute.current = true; router.replace("/dashboard"); }
+      return;
+    }
+
+    if (user && !isPublic && !isOnboarded) {
+      // Signed in but not onboarded → back to onboarding (index handles this)
+      if (!didRoute.current) { didRoute.current = true; router.replace("/"); }
+      return;
+    }
+
+    // Reset didRoute when route settles so future auth changes work
+    didRoute.current = false;
   }, [user, profile, loading, router.pathname]);
 
+  // Show spinner only while loading — never while routing
   if (loading) return (
     <div style={{ background:"#080808", height:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>

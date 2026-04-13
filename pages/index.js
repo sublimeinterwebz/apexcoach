@@ -41,11 +41,6 @@ export default function Home() {
   const [loading,  setLoading]  = useState(false);
   const [form,     setForm]     = useState(buildForm());
 
-  // Already signed in — skip to dashboard if profile exists
-  useEffect(() => {
-    if (user) router.replace("/dashboard");
-  }, [user]);
-
   const setField  = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleArr = (k, v) => setForm(f => ({
     ...f, [k]: f[k].includes(v) ? f[k].filter(x => x !== v) : [...f[k], v],
