@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   // Test each model with a minimal prompt
-  for (const model of ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]) {
+  for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-preview-04-17"]) {
     try {
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`,

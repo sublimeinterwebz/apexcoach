@@ -230,7 +230,7 @@ async function callGeminiDirectly(profile) {
     + '"snacks":[{"name":"Greek Yogurt Berries","calories":180,"protein":15,"carbs":18,"fat":3,"ingredients":["200g Greek yogurt","100g berries","honey"],"instructions":"Mix and serve cold."}]},'
     + '"nutritionNotes":"Personalized note here."},"coachNote":"One specific personal coaching note."}';
 
-  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"];
+  const models = ["gemini-2.5-flash", "gemini-2.5-flash-preview-04-17"];
   for (const model of models) {
     try {
       const url = "https://generativelanguage.googleapis.com/v1/models/" + model + ":generateContent?key=" + key;

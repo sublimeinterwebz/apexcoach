@@ -54,7 +54,7 @@ export default async function handler(req, res) {
   const prompt  = buildPrompt(profile);
 
   // Try models in order of speed
-  for (const model of ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash"]) {
+  for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-preview-04-17"]) {
     console.log("Trying:", model);
     try {
       const r = await fetch(

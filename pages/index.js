@@ -188,7 +188,7 @@ Return this exact JSON with all 7 days:
 
   const errors = [];
 
-  for (const model of ["gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-2.0-flash"]) {
+  for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-preview-04-17"]) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
       const r = await fetch(url, {
