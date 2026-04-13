@@ -101,56 +101,31 @@ export default function Dashboard() {
 
             {/* Day card */}
             {dayData && (
-              <div key={selectedDay} style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:16, padding:16, marginBottom:12, flex:1, overflow:"hidden" }}>
+              <div key={selectedDay} style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:16, padding:20, marginBottom:12 }}>
                 {dayData.type === "rest" || dayData.type === "recovery" ? (
-                  <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", height:"100%", gap:6 }}>
+                  <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", gap:6, paddingVertical:12 }}>
                     <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:2, color:"#1e1e1e" }}>
                       {dayData.type === "recovery" ? "ACTIVE RECOVERY" : "REST DAY"}
                     </div>
-                    {dayData.blocks?.warmup?.length > 0 && (
-                      <div style={{ fontSize:12, color:"#2a2a2a", textAlign:"center", lineHeight:1.6 }}>
-                        {dayData.blocks.cooldown?.map(e => e.name).join(" · ") || "Light movement, stretching, hydration"}
-                      </div>
-                    )}
-                    {!dayData.blocks?.warmup?.length && (
-                      <div style={{ fontSize:12, color:"#2a2a2a", textAlign:"center" }}>Recovery is training. Sleep well. Stay hydrated.</div>
-                    )}
+                    <div style={{ fontSize:12, color:"#2a2a2a", textAlign:"center" }}>Recovery is training. Sleep well. Stay hydrated.</div>
                   </div>
                 ) : (
                   <>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-                      <div>
-                        <div style={{ fontSize:9, color: TYPE_COLOR[dayData.type] || "#00ff80", letterSpacing:2.5, fontWeight:600, marginBottom:3 }}>
-                          {selectedDay === TODAY_IDX ? "TODAY" : (dayData.dayName || DAY_NAMES[selectedDay] || "").toUpperCase()} · {(dayData.type || "").toUpperCase()}
-                        </div>
-                        <div style={{ fontFamily:"'Bebas Neue'", fontSize:26, letterSpacing:1.5, lineHeight:1 }}>{dayData.focus || dayData.sessionLabel}</div>
-                        <div style={{ fontSize:11, color:"#555", marginTop:2 }}>{dayData.muscleGroups} · {dayData.estimatedDuration}</div>
+                    <div style={{ marginBottom:14 }}>
+                      <div style={{ fontSize:9, color: TYPE_COLOR[dayData.type] || "#00ff80", letterSpacing:2.5, fontWeight:600, marginBottom:6 }}>
+                        {selectedDay === TODAY_IDX ? "TODAY" : (dayData.dayName || DAY_NAMES[selectedDay] || "").toUpperCase()} · {(dayData.type || "").toUpperCase()}
                       </div>
-                      <div style={{ background:"rgba(0,255,128,0.08)", border:"1px solid rgba(0,255,128,0.15)", borderRadius:8, padding:"3px 10px", fontSize:10, color:"#00ff80", fontWeight:600 }}>
-                        {todayExCount} moves
-                      </div>
-                    </div>
-                    <div style={{ height:1, background:"#141414", marginBottom:10 }}/>
-
-                    {/* Show main block preview */}
-                    <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                      {(dayData.blocks?.main || dayData.exercises || []).slice(0, 4).map((ex, i) => (
-                        <div key={i} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                          <div style={{ width:20, height:20, borderRadius:5, background:"#111", border:"1px solid #1a1a1a", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#333", fontWeight:700 }}>{i+1}</div>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:12, fontWeight:500, color:"#d0d0d0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ex.name}</div>
-                            <div style={{ fontSize:10, color:"#444", marginTop:1 }}>{ex.sets} sets · {ex.reps} reps</div>
-                          </div>
-                        </div>
-                      ))}
-                      {(dayData.blocks?.main || dayData.exercises || []).length > 4 && (
-                        <div style={{ fontSize:11, color:"#444", paddingLeft:30 }}>+{(dayData.blocks?.main || dayData.exercises || []).length - 4} more in full workout</div>
-                      )}
+                      <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, letterSpacing:1.5, lineHeight:1, marginBottom:6 }}>{dayData.focus || dayData.sessionLabel}</div>
+                      <div style={{ fontSize:12, color:"#666" }}>{dayData.muscleGroups} · {dayData.estimatedDuration} · {todayExCount} moves</div>
                     </div>
 
-                    {selectedDay === TODAY_IDX && (
-                      <button onClick={() => router.push("/workout")} style={{ width:"100%", marginTop:14, padding:"13px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:11, fontFamily:"'DM Sans'", fontSize:13, fontWeight:700, color:"#000", cursor:"pointer" }}>
+                    {selectedDay === TODAY_IDX ? (
+                      <button onClick={() => router.push("/workout")} style={{ width:"100%", padding:"15px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, fontFamily:"'DM Sans'", fontSize:14, fontWeight:700, color:"#000", cursor:"pointer" }}>
                         Start Workout
+                      </button>
+                    ) : (
+                      <button onClick={() => router.push("/workout")} style={{ width:"100%", padding:"13px", background:"transparent", border:"1px solid #1e1e1e", borderRadius:12, fontFamily:"'DM Sans'", fontSize:13, fontWeight:600, color:"#555", cursor:"pointer" }}>
+                        View Workout
                       </button>
                     )}
                   </>

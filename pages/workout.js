@@ -131,32 +131,43 @@ export default function Workout() {
 
 function PreviewScreen({ todayPlan, flat, loggable, onStart, onBack }) {
   return (
-    <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"48px 20px 28px", position:"relative", zIndex:1 }}>
-      <button onClick={onBack} style={{ background:"none", border:"none", color:"#666", fontSize:11, cursor:"pointer", textAlign:"left", marginBottom:16, fontFamily:"'DM Sans'", letterSpacing:1 }}>← BACK</button>
-      <div style={{ marginBottom:6 }}>
+    <div style={{ flex:1, display:"flex", flexDirection:"column", height:"100%", position:"relative", zIndex:1 }}>
+      {/* Fixed header */}
+      <div style={{ padding:"48px 20px 16px", flexShrink:0 }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", color:"#666", fontSize:11, cursor:"pointer", textAlign:"left", marginBottom:16, fontFamily:"'DM Sans'", letterSpacing:1 }}>← BACK</button>
         <div style={{ fontSize:9, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:3 }}>TODAY · {(todayPlan.type || "").toUpperCase()}</div>
         <div style={{ fontFamily:"'Bebas Neue'", fontSize:34, letterSpacing:1.5, lineHeight:1 }}>{todayPlan.focus || todayPlan.sessionLabel}</div>
         <div style={{ fontSize:12, color:"#666", marginTop:4 }}>{todayPlan.muscleGroups} · {loggable.length} logged exercises · {todayPlan.estimatedDuration}</div>
+        <div style={{ height:1, background:"#1a1a1a", marginTop:14 }}/>
       </div>
-      <div style={{ height:1, background:"#1a1a1a", margin:"14px 0" }}/>
-      <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:6 }}>
-        {flat.map((item, i) => item.isHeader ? (
-          <div key={i} style={{ fontSize:9, letterSpacing:2.5, fontWeight:700, color:item.color, marginTop: i===0?0:10, paddingBottom:4, borderBottom:`1px solid ${item.color}22` }}>
-            {item.label.toUpperCase()}
-          </div>
-        ) : (
-          <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:"#0d0d0d", border:"1px solid #141414", borderRadius:10 }}>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12.5, fontWeight:600, color:"#d0d0d0" }}>{item.name}</div>
-              <div style={{ fontSize:10, color:"#555", marginTop:1 }}>
-                {item.sets && item.reps ? `${item.sets} sets · ${item.reps} reps` : item.duration || item.details || ""}
-              </div>
+
+      {/* Scrollable exercise list */}
+      <div style={{ flex:1, overflowY:"auto", padding:"0 20px", WebkitOverflowScrolling:"touch" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:6, paddingBottom:16 }}>
+          {flat.map((item, i) => item.isHeader ? (
+            <div key={i} style={{ fontSize:9, letterSpacing:2.5, fontWeight:700, color:item.color, marginTop: i===0?8:14, paddingBottom:4, borderBottom:`1px solid ${item.color}22` }}>
+              {item.label.toUpperCase()}
             </div>
-            {item.restSeconds && item.sets && <div style={{ fontSize:9, color:"#333", flexShrink:0 }}>{item.restSeconds}s</div>}
-          </div>
-        ))}
+          ) : (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#0d0d0d", border:"1px solid #141414", borderRadius:10 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12.5, fontWeight:600, color:"#d0d0d0" }}>{item.name}</div>
+                <div style={{ fontSize:10, color:"#555", marginTop:1 }}>
+                  {item.sets && item.reps ? `${item.sets} sets · ${item.reps} reps` : item.duration || item.details || ""}
+                </div>
+              </div>
+              {item.restSeconds && item.sets && <div style={{ fontSize:9, color:"#333", flexShrink:0 }}>{item.restSeconds}s</div>}
+            </div>
+          ))}
+        </div>
       </div>
-      <button onClick={onStart} style={{ marginTop:16, padding:"15px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:13, fontFamily:"'DM Sans'", fontSize:14, fontWeight:700, color:"#000", cursor:"pointer" }}>Start Workout</button>
+
+      {/* Fixed Start button at bottom */}
+      <div style={{ padding:"12px 20px 36px", flexShrink:0, background:"rgba(8,8,8,0.95)", backdropFilter:"blur(12px)", borderTop:"1px solid #141414" }}>
+        <button onClick={onStart} style={{ width:"100%", padding:"16px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:13, fontFamily:"'DM Sans'", fontSize:15, fontWeight:700, color:"#000", cursor:"pointer" }}>
+          Start Workout
+        </button>
+      </div>
     </div>
   );
 }
