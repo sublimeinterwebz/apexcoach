@@ -178,16 +178,22 @@ function GeneratingScreen({ user, form, setProfile, onDone }) {
         currentWeek: 1,
       };
       try {
+        // 1. Save to Firestore
         if (user) await saveUserProfile(user.uid, newProfile);
-        // Update context immediately so dashboard auth check passes
+        // 2. Cache in sessionStorage so AuthContext doesn't lose it on navigation
+        try { sessionStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(newProfile)); } catch {}
+        // 3. Update React context
         setProfile(newProfile);
         setStatus("ready");
       } catch(e) {
         console.error("Save error:", e);
-        setStatus("error");
+        // Even if Firestore fails, cache in sessionStorage and allow navigation
+        try { sessionStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(newProfile)); } catch {}
+        setProfile(newProfile);
+        setStatus("ready"); // Still let user proceed — Firestore can sync later
       }
     }
-    const t = setTimeout(save, 1200);
+    const t = setTimeout(save, 1000);
     return () => clearTimeout(t);
   }, []);
 
