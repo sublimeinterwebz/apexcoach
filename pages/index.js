@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, btnStyle, inputStyle, Label, RadioCard } from "../components/shared";
-import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile } from "../lib/firebase";
+import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile, saveWeekPlan } from "../lib/firebase";
 import { useAuth } from "../lib/AuthContext";
 
 const STEPS = ["Profile", "Health", "Lifestyle", "Goals"];
@@ -166,10 +166,11 @@ export default function Home() {
 
 // ── Generating Screen — saves profile THEN navigates ──
 function GeneratingScreen({ user, form, setProfile, onDone }) {
-  const [status, setStatus] = useState("saving"); // saving | ready | error
+  const [status, setStatus] = useState("saving");
+  const [step,   setStep]   = useState("Saving your profile...");
 
   useEffect(() => {
-    async function save() {
+    async function run() {
       const newProfile = {
         displayName: user?.displayName || "",
         email: user?.email || "",
@@ -178,22 +179,41 @@ function GeneratingScreen({ user, form, setProfile, onDone }) {
         currentWeek: 1,
       };
       try {
-        // 1. Save to Firestore
+        // 1. Save profile to Firestore
         if (user) await saveUserProfile(user.uid, newProfile);
-        // 2. Cache in sessionStorage so AuthContext doesn't lose it on navigation
-        try { sessionStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(newProfile)); } catch {}
-        // 3. Update React context
-        setProfile(newProfile);
+
+        // 2. Call Gemini to generate personalized plan
+        setStep("Generating your personalized plan...");
+        let plan = null;
+        try {
+          const r = await fetch("/api/generate-plan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newProfile),
+          });
+          if (r.ok) {
+            plan = await r.json();
+            if (user && plan) await saveWeekPlan(user.uid, 1, plan);
+          }
+        } catch (planErr) {
+          console.error("Plan generation error:", planErr);
+        }
+
+        // 3. Cache in sessionStorage
+        const toCache = { ...newProfile, plan };
+        try { sessionStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(toCache)); } catch {}
+
+        // 4. Update context
+        setProfile(toCache);
         setStatus("ready");
       } catch(e) {
         console.error("Save error:", e);
-        // Even if Firestore fails, cache in sessionStorage and allow navigation
         try { sessionStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(newProfile)); } catch {}
         setProfile(newProfile);
-        setStatus("ready"); // Still let user proceed — Firestore can sync later
+        setStatus("ready");
       }
     }
-    const t = setTimeout(save, 1000);
+    const t = setTimeout(run, 600);
     return () => clearTimeout(t);
   }, []);
 
@@ -207,7 +227,7 @@ function GeneratingScreen({ user, form, setProfile, onDone }) {
         <p style={{ color:"#777", fontSize:13, marginTop:10, lineHeight:1.7 }}>
           {status === "ready"
             ? "Your personalized workout and nutrition plan is ready."
-            : "Analyzing your profile and crafting your plan..."}
+            : step}
         </p>
         {status !== "ready" && <LoadingDots />}
         {status === "error" && <p style={{ color:"#ff5e5e", fontSize:12, marginTop:10 }}>Save failed — check your connection and try again.</p>}

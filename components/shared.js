@@ -138,10 +138,11 @@ export function RadioCard({ value, label, desc, active, onClick }) {
 // ── Bottom Nav ─────────────────────────────────────────
 export function BottomNav({ active, router }) {
   const tabs = [
-    { key: "dashboard", label: "Home",     icon: "▦", href: "/dashboard" },
-    { key: "workout",   label: "Workout",  icon: "◈", href: "/workout"   },
-    { key: "review",    label: "Review",   icon: "◷", href: "/review"    },
-    { key: "chat",      label: "Coach",    icon: "◉", href: "/chat"      },
+    { key: "dashboard", label: "Home",      icon: "▦", href: "/dashboard" },
+    { key: "workout",   label: "Workout",   icon: "◈", href: "/workout"   },
+    { key: "nutrition", label: "Nutrition", icon: "◑", href: "/nutrition" },
+    { key: "review",    label: "Review",    icon: "◷", href: "/review"    },
+    { key: "chat",      label: "Coach",     icon: "◉", href: "/chat"      },
   ];
   return (
     <div style={{
