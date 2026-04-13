@@ -2,7 +2,6 @@ import "../styles/globals.css";
 import Head from "next/head";
 import { AuthProvider } from "../lib/AuthContext";
 
-// No RouteGuard — each page handles its own auth redirect
 export default function App({ Component, pageProps }) {
   return (
     <AuthProvider>
@@ -15,9 +14,18 @@ export default function App({ Component, pageProps }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ApexCoach" />
         <link rel="manifest" href="/manifest.json" />
+        {/* Preconnect first, then async font load — non-blocking */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-        <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap"
+          media="print"
+          onLoad="this.media='all'"
+        />
+        <noscript>
+          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" />
+        </noscript>
       </Head>
       <Component {...pageProps} />
     </AuthProvider>
