@@ -76,7 +76,7 @@ export default function Dashboard() {
         {planLoading ? (
           <PlanLoader />
         ) : !plan ? (
-          <NoPlan />
+          <NoPlan profile={profile} user={user} onPlanGenerated={(p) => setPlan(p)} />
         ) : (
           <>
             {/* Week strip */}
@@ -192,14 +192,40 @@ function PlanLoader() {
   );
 }
 
-function NoPlan() {
-  const router = useRouter();
+function NoPlan({ profile, user, onPlanGenerated }) {
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  const regenerate = async () => {
+    setGenerating(true);
+    setError("");
+    try {
+      const r = await fetch("/api/generate-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile || {}),
+      });
+      const data = await r.json();
+      if (!r.ok) { setError(data.error || "Failed to generate plan."); return; }
+      const { saveWeekPlan } = await import("../lib/firebase");
+      if (user) await saveWeekPlan(user.uid, 1, data);
+      onPlanGenerated(data);
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12, padding:"0 24px", textAlign:"center" }}>
-      <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:2, color:"#1e1e1e" }}>NO PLAN FOUND</div>
-      <div style={{ fontSize:12, color:"#333", lineHeight:1.7 }}>Your plan couldn't be loaded. This may be because the Gemini API key isn't set up in Vercel yet.</div>
-      <button onClick={() => router.push("/")} style={{ marginTop:8, padding:"12px 24px", background:"rgba(0,255,128,0.1)", border:"1px solid rgba(0,255,128,0.3)", borderRadius:12, color:"#00ff80", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans'" }}>
-        Return to Onboarding
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:2, color:"#1e1e1e" }}>NO PLAN YET</div>
+      <div style={{ fontSize:12, color:"#444", lineHeight:1.7 }}>Your plan hasn't been generated yet. Tap below to create your personalized plan now.</div>
+      {error && <div style={{ fontSize:11, color:"#ff5e5e" }}>{error}</div>}
+      <button onClick={regenerate} disabled={generating} style={{ marginTop:8, padding:"14px 28px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, color:"#000", fontSize:13, fontWeight:700, cursor:generating?"default":"pointer", fontFamily:"'DM Sans'", opacity:generating?0.6:1, display:"flex", alignItems:"center", gap:8 }}>
+        {generating && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#000", animation:"spin 0.8s linear infinite" }}/>}
+        {generating ? "Generating Plan..." : "Generate My Plan"}
       </button>
     </div>
   );
