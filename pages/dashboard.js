@@ -193,26 +193,64 @@ function PlanLoader() {
 }
 
 
-// Call Gemini directly from browser
+// Call Gemini directly from browser — no serverless timeout limit
 async function callGeminiDirectly(profile) {
   const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!key) throw new Error("NEXT_PUBLIC_GEMINI_API_KEY not set");
-  const days = parseInt(profile.trainingDays) || 4;
-  const prompt = `You are a fitness coach. Return ONLY valid JSON (no markdown).
-User: ${profile.age}yr ${profile.gender}, ${profile.weight}${profile.weightUnit}, ${profile.fitnessLevel || "beginner"}, goal: ${profile.primaryGoal || "maintain"}, ${days} training days/week, equipment: ${(profile.equipment||[]).join(", ")||"bodyweight"}, injuries: ${(profile.injuries||[]).filter(x=>x!=="None").join(", ")||"none"}, diet: ${(profile.dietaryPrefs||[]).filter(x=>x!=="No Restrictions").join(", ")||"none"}.
-Return a 7-day plan JSON with weekPlan array and nutrition object. Same format as before.
-{"weekPlan":[{"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push","muscleGroups":"Chest","estimatedDuration":"45 min","exercises":[{"name":"Push-up","sets":3,"reps":"12","restSeconds":60,"notes":""}]},{"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}],"nutrition":{"dailyCalories":2200,"macros":{"protein":160,"carbs":220,"fat":70},"meals":{"breakfast":{"name":"Oats","calories":400,"protein":28,"carbs":48,"fat":9,"ingredients":["oats","protein powder","milk"],"instructions":"Cook and mix."},"lunch":{"name":"Chicken Rice","calories":580,"protein":45,"carbs":60,"fat":11,"ingredients":["chicken","rice","veg"],"instructions":"Grill and serve."},"dinner":{"name":"Salmon Potato","calories":620,"protein":40,"carbs":55,"fat":19,"ingredients":["salmon","sweet potato","salad"],"instructions":"Bake and roast."},"snacks":[{"name":"Yogurt","calories":160,"protein":14,"carbs":16,"fat":3,"ingredients":["Greek yogurt","berries"],"instructions":"Mix and serve."}]},"nutritionNotes":"Notes here."},"coachNote":"Personal note here."}`;
-  for (const model of ["gemini-1.5-flash","gemini-2.0-flash","gemini-1.5-flash-8b"]) {
+  if (!key) throw new Error("NEXT_PUBLIC_GEMINI_API_KEY not set in Vercel");
+
+  const days     = parseInt(profile.trainingDays) || 4;
+  const injuries = (profile.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
+  const equip    = (profile.equipment || []).join(", ") || "bodyweight";
+  const diet     = (profile.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "none";
+  const loc      = (profile.workoutLocation || []).join("/") || "gym";
+  const goal     = { fat_loss: "fat loss", muscle_gain: "muscle gain", maintain: "maintain" }[profile.primaryGoal] || "maintain";
+
+  const prompt = "You are a fitness coach. Return ONLY valid JSON, no markdown.\n\n"
+    + "User: " + (profile.age || "?") + "yr " + (profile.gender || "?")
+    + ", " + profile.weight + (profile.weightUnit || "kg")
+    + ", " + (profile.fitnessLevel || "beginner")
+    + ", goal: " + goal
+    + ", " + days + " training days/week"
+    + ", location: " + loc
+    + ", equipment: " + equip
+    + ", injuries: " + injuries
+    + ", diet: " + diet
+    + ", sleep: " + (profile.sleepHours || "7h")
+    + ", stress: " + (profile.stressLevel || "medium")
+    + ".\n\n"
+    + "Generate exactly 7 days (" + days + " workouts, " + (7 - days) + " rest). "
+    + "Only use: " + equip + ". Avoid exercises stressing: " + injuries + ". "
+    + "Personalize meals for diet: " + diet + ".\n\n"
+    + 'Return this JSON structure with all 7 days:\n'
+    + '{"weekPlan":[{"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push Day","muscleGroups":"Chest, Shoulders, Triceps","estimatedDuration":"45 min","exercises":[{"name":"Push-up","sets":4,"reps":"12","restSeconds":60,"notes":"Control the descent"}]},{"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}],'
+    + '"nutrition":{"dailyCalories":2200,"macros":{"protein":160,"carbs":220,"fat":70},'
+    + '"meals":{"breakfast":{"name":"Protein Oats","calories":450,"protein":32,"carbs":50,"fat":10,"ingredients":["80g oats","1 scoop whey","1 banana","200ml milk"],"instructions":"Cook oats, stir in protein off heat, top with banana."},'
+    + '"lunch":{"name":"Chicken Rice Bowl","calories":600,"protein":48,"carbs":65,"fat":12,"ingredients":["180g chicken breast","150g white rice","broccoli","olive oil"],"instructions":"Grill chicken, steam veg, serve over rice."},'
+    + '"dinner":{"name":"Salmon Sweet Potato","calories":640,"protein":42,"carbs":58,"fat":19,"ingredients":["180g salmon","200g sweet potato","mixed salad","lemon"],"instructions":"Bake salmon 200C 18min, roast potato 25min."},'
+    + '"snacks":[{"name":"Greek Yogurt Berries","calories":180,"protein":15,"carbs":18,"fat":3,"ingredients":["200g Greek yogurt","100g berries","honey"],"instructions":"Mix and serve cold."}]},'
+    + '"nutritionNotes":"Personalized note here."},"coachNote":"One specific personal coaching note."}';
+
+  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"];
+  for (const model of models) {
     try {
-      const r = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${key}\`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:0.8,maxOutputTokens:2500,responseMimeType:"application/json"}})});
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + key;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.8, maxOutputTokens: 2500, responseMimeType: "application/json" },
+        }),
+      });
       const data = await r.json();
-      if (!r.ok) continue;
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-      if (!text) continue;
-      return JSON.parse(text.replace(/^```json\s*/i,"").replace(/\s*```$/i,"").trim());
-    } catch(e) { console.error(model,e.message); }
+      if (!r.ok) { console.error(model, r.status, data?.error?.message); continue; }
+      const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+      if (!text) { console.error(model, "empty response"); continue; }
+      const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+      return JSON.parse(clean);
+    } catch (e) { console.error(model, e.message); }
   }
-  throw new Error("Gemini failed");
+  throw new Error("All Gemini models failed");
 }
 
 function NoPlan({ profile, user, onPlanGenerated }) {
