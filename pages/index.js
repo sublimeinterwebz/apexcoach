@@ -1,3 +1,5 @@
+import { signInWithGoogle, signUpWithEmail, signInWithEmail, saveUserProfile } from "../lib/firebase";
+import { useAuth } from "../lib/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, btnStyle, inputStyle, Label, Chip, RadioCard } from "../components/shared";
@@ -28,19 +30,48 @@ function buildForm() {
 }
 
 export default function Home() {
-  const router = useRouter();
-  const [screen, setScreen] = useState("welcome");
-  const [step, setStep]     = useState(0);
-  const [authMode, setAuthMode] = useState(null);
-  const [email, setEmail]   = useState("");
+  const router  = useRouter();
+  const { user } = useAuth();
+  const [screen,   setScreen]   = useState("welcome");
+  const [step,     setStep]     = useState(0);
+  const [authMode, setAuthMode] = useState(null); // null | "signin" | "signup"
+  const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
-  const [form, setForm]     = useState(buildForm());
+  const [authErr,  setAuthErr]  = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [form,     setForm]     = useState(buildForm());
 
-  const setField   = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const toggleArr  = (k, v) => setForm(f => ({
+  // Already signed in — skip to dashboard if profile exists
+  useEffect(() => {
+    if (user) router.replace("/dashboard");
+  }, [user]);
+
+  const setField  = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const toggleArr = (k, v) => setForm(f => ({
     ...f, [k]: f[k].includes(v) ? f[k].filter(x => x !== v) : [...f[k], v],
   }));
   const progress = ((step + 1) / STEPS.length) * 100;
+
+  const handleGoogle = async () => {
+    setLoading(true); setAuthErr("");
+    try {
+      await signInWithGoogle();
+      setScreen("onboarding");
+    } catch(e) { setAuthErr(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const handleEmailAuth = async () => {
+    setLoading(true); setAuthErr("");
+    try {
+      if (authMode === "signup") await signUpWithEmail(email, password);
+      else await signInWithEmail(email, password);
+      setScreen("onboarding");
+    } catch(e) {
+      setAuthErr(e.code === "auth/user-not-found" || e.code === "auth/wrong-password"
+        ? "Invalid email or password." : e.message);
+    } finally { setLoading(false); }
+  };
 
   if (screen === "welcome") return (
     <Screen style={{ justifyContent:"space-between" }}>
@@ -60,17 +91,23 @@ export default function Home() {
       <div style={{ padding:"0 24px 48px", position:"relative", zIndex:1 }}>
         {!authMode ? (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <button onClick={() => alert("Wire up Firebase Google Sign-In")} style={btnStyle("outline")}>Continue with Google</button>
-            <button onClick={() => setAuthMode("email")} style={btnStyle("ghost")}>Continue with Email</button>
-            <button onClick={() => setScreen("onboarding")} style={{ ...btnStyle("primary"), marginTop:4 }}>Get Started</button>
-            <p style={{ textAlign:"center", color:"#555", fontSize:11, marginTop:6 }}>By continuing, you agree to our Terms and Privacy Policy</p>
+            <button onClick={handleGoogle} disabled={loading} style={btnStyle("outline")}>Continue with Google</button>
+            <button onClick={() => setAuthMode("signup")} style={btnStyle("ghost")}>Sign Up with Email</button>
+            <button onClick={() => setAuthMode("signin")} style={{ ...btnStyle("ghost"), marginTop:-4 }}>Sign In</button>
+            <p style={{ textAlign:"center", color:"#444", fontSize:11, marginTop:6 }}>By continuing, you agree to our Terms and Privacy Policy</p>
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <div style={{ fontSize:12, color:"#00ff80", letterSpacing:2, fontWeight:600, marginBottom:4 }}>
+              {authMode === "signup" ? "CREATE ACCOUNT" : "SIGN IN"}
+            </div>
             <input placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} type="email" />
             <input placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} type="password" />
-            <button onClick={() => setScreen("onboarding")} style={btnStyle("primary")}>Get Started</button>
-            <button onClick={() => setAuthMode(null)} style={{ background:"none", border:"none", color:"#666", fontSize:13, cursor:"pointer", marginTop:4 }}>Back</button>
+            {authErr && <div style={{ fontSize:12, color:"#ff5e5e", marginTop:-4 }}>{authErr}</div>}
+            <button onClick={handleEmailAuth} disabled={loading || !email || !password} style={{ ...btnStyle("primary"), opacity: loading ? 0.7 : 1 }}>
+              {loading ? "..." : authMode === "signup" ? "Create Account" : "Sign In"}
+            </button>
+            <button onClick={() => { setAuthMode(null); setAuthErr(""); }} style={{ background:"none", border:"none", color:"#555", fontSize:13, cursor:"pointer", marginTop:4 }}>Back</button>
           </div>
         )}
       </div>
@@ -78,15 +115,7 @@ export default function Home() {
   );
 
   if (screen === "generating") return (
-    <Screen style={{ alignItems:"center", justifyContent:"center" }}>
-      <div style={{ textAlign:"center", zIndex:1, padding:"0 32px" }}>
-        <PulsingRing />
-        <div style={{ fontFamily:"'Bebas Neue'", fontSize:32, letterSpacing:2, marginTop:28 }}>BUILDING YOUR PLAN</div>
-        <p style={{ color:"#777", fontSize:13, marginTop:10, lineHeight:1.7 }}>Analyzing your profile and crafting a personalized workout and nutrition plan...</p>
-        <LoadingDots />
-        <button onClick={() => router.push("/dashboard")} style={{ ...btnStyle("primary"), marginTop:32, maxWidth:300, margin:"32px auto 0" }}>View My Plan</button>
-      </div>
-    </Screen>
+    <GeneratingScreen form={form} onDone={() => router.push("/dashboard")} />
   );
 
   return (
@@ -118,6 +147,45 @@ export default function Home() {
         <button onClick={() => step < STEPS.length-1 ? setStep(s => s+1) : setScreen("generating")} style={{ ...btnStyle("primary"), flex:2 }}>
           {step < STEPS.length-1 ? "Continue" : "Generate My Plan"}
         </button>
+      </div>
+    </Screen>
+  );
+}
+
+// ── Generating Screen (saves profile to Firestore) ────
+function GeneratingScreen({ form, onDone }) {
+  const { user } = useAuth();
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    async function save() {
+      if (user && !saved) {
+        try {
+          await saveUserProfile(user.uid, {
+            displayName: user.displayName || "",
+            email: user.email || "",
+            ...form,
+            onboardingComplete: true,
+            currentWeek: 1,
+          });
+        } catch(e) { console.error("Profile save error:", e); }
+        setSaved(true);
+      }
+    }
+    const t = setTimeout(save, 800);
+    return () => clearTimeout(t);
+  }, [user]);
+
+  return (
+    <Screen style={{ alignItems:"center", justifyContent:"center" }}>
+      <div style={{ textAlign:"center", zIndex:1, padding:"0 32px" }}>
+        <PulsingRing />
+        <div style={{ fontFamily:"'Bebas Neue'", fontSize:32, letterSpacing:2, marginTop:28 }}>BUILDING YOUR PLAN</div>
+        <p style={{ color:"#777", fontSize:13, marginTop:10, lineHeight:1.7 }}>
+          Analyzing your profile and crafting a personalized workout and nutrition plan...
+        </p>
+        <LoadingDots />
+        <button onClick={onDone} style={{ ...btnStyle("primary"), marginTop:32, width:"100%" }}>View My Plan</button>
       </div>
     </Screen>
   );
