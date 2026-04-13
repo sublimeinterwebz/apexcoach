@@ -154,19 +154,19 @@ function ActiveScreen({ ex, exIdx, sets, allDone, isLast, elapsed, timer, timerP
       </div>
 
       {/* Set rows */}
-      <div style={{ padding:"0 20px", display:"flex", flexDirection:"column", gap:7, flex:1, position:"relative", zIndex:1 }}>
+      <div style={{ padding:"0 16px", display:"flex", flexDirection:"column", gap:7, flex:1, position:"relative", zIndex:1, boxSizing:"border-box" }}>
         {sets.map((s, si) => {
           const isActive = !s.done && sets.slice(0,si).every(x => x.done);
           const canLog   = s.weight !== "" && s.reps !== "";
           return (
-            <div key={si} style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", borderRadius:11, background: s.done?"rgba(0,255,128,0.05)":isActive?"#0e0e0e":"#090909", border:`1px solid ${s.done?"rgba(0,255,128,0.2)":isActive?"#1e1e1e":"#0e0e0e"}`, transition:"all 0.25s", overflow:"hidden", width:"100%" }}>
-              <div style={{ width:22, height:22, borderRadius:6, flexShrink:0, background: s.done?"rgba(0,255,128,0.12)":"#111", border:`1px solid ${s.done?"rgba(0,255,128,0.25)":"#1a1a1a"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color: s.done?"#00ff80":"#444" }}>{si+1}</div>
+            <div key={si} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 10px", borderRadius:11, background: s.done?"rgba(0,255,128,0.05)":isActive?"#0e0e0e":"#090909", border:`1px solid ${s.done?"rgba(0,255,128,0.2)":isActive?"#1e1e1e":"#0e0e0e"}`, transition:"all 0.25s", boxSizing:"border-box" }}>
+              <div style={{ width:20, height:20, borderRadius:5, flexShrink:0, background: s.done?"rgba(0,255,128,0.12)":"#111", border:`1px solid ${s.done?"rgba(0,255,128,0.25)":"#1a1a1a"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color: s.done?"#00ff80":"#444" }}>{si+1}</div>
               <input type="number" placeholder="—" value={s.weight} disabled={s.done||!isActive} onChange={e => updateSet(si,"weight",e.target.value)}
-                style={{ flex:1, minWidth:0, background:"transparent", border:`1px solid ${isActive&&!s.done?"#1e1e1e":"transparent"}`, borderRadius:7, padding:"6px 0", color: s.done?"#00aa55":isActive?"#f0f0f0":"#333", fontSize:20, fontFamily:"'Bebas Neue'", letterSpacing:1, textAlign:"center", outline:"none" }}/>
+                style={{ flex:1, minWidth:0, width:0, background:"transparent", border:`1px solid ${isActive&&!s.done?"#1e1e1e":"transparent"}`, borderRadius:7, padding:"6px 2px", color: s.done?"#00aa55":isActive?"#f0f0f0":"#333", fontSize:20, fontFamily:"'Bebas Neue'", letterSpacing:1, textAlign:"center", outline:"none" }}/>
               <div style={{ width:1, height:16, background:"#1a1a1a", flexShrink:0 }}/>
               <input type="number" placeholder="—" value={s.reps} disabled={s.done||!isActive} onChange={e => updateSet(si,"reps",e.target.value)}
-                style={{ flex:1, minWidth:0, background:"transparent", border:`1px solid ${isActive&&!s.done?"#1e1e1e":"transparent"}`, borderRadius:7, padding:"6px 0", color: s.done?"#00aa55":isActive?"#f0f0f0":"#333", fontSize:20, fontFamily:"'Bebas Neue'", letterSpacing:1, textAlign:"center", outline:"none" }}/>
-              <button onClick={() => !s.done&&isActive&&canLog&&completeSet(si)} style={{ width:34, height:34, minWidth:34, borderRadius:9, flexShrink:0, background: s.done?"rgba(0,255,128,0.14)":isActive&&canLog?"rgba(0,255,128,0.08)":"#0a0a0a", border:`1px solid ${s.done?"rgba(0,255,128,0.35)":isActive&&canLog?"rgba(0,255,128,0.25)":"#0e0e0e"}`, color: s.done?"#00ff80":isActive&&canLog?"#00ff80":"#2a2a2a", fontSize:14, cursor: isActive&&canLog&&!s.done?"pointer":"default", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }}>{s.done?"✓":"○"}</button>
+                style={{ flex:1, minWidth:0, width:0, background:"transparent", border:`1px solid ${isActive&&!s.done?"#1e1e1e":"transparent"}`, borderRadius:7, padding:"6px 2px", color: s.done?"#00aa55":isActive?"#f0f0f0":"#333", fontSize:20, fontFamily:"'Bebas Neue'", letterSpacing:1, textAlign:"center", outline:"none" }}/>
+              <button onClick={() => !s.done&&isActive&&canLog&&completeSet(si)} style={{ width:36, height:36, minWidth:36, borderRadius:9, flexShrink:0, background: s.done?"rgba(0,255,128,0.14)":isActive&&canLog?"rgba(0,255,128,0.08)":"#0a0a0a", border:`1px solid ${s.done?"rgba(0,255,128,0.35)":isActive&&canLog?"rgba(0,255,128,0.25)":"#0e0e0e"}`, color: s.done?"#00ff80":isActive&&canLog?"#00ff80":"#2a2a2a", fontSize:15, cursor: isActive&&canLog&&!s.done?"pointer":"default", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }}>{s.done?"✓":"○"}</button>
             </div>
           );
         })}
