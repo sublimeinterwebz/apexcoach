@@ -1,4 +1,4 @@
-import { signInWithGoogle, signUpWithEmail, signInWithEmail, saveUserProfile } from "../lib/firebase";
+import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile } from "../lib/firebase";
 import { useAuth } from "../lib/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -61,6 +61,15 @@ export default function Home() {
     finally { setLoading(false); }
   };
 
+  const handleGuest = async () => {
+    setLoading(true); setAuthErr("");
+    try {
+      await signInAnonymously();
+      setScreen("onboarding");
+    } catch(e) { setAuthErr(e.message); }
+    finally { setLoading(false); }
+  };
+
   const handleEmailAuth = async () => {
     setLoading(true); setAuthErr("");
     try {
@@ -94,6 +103,9 @@ export default function Home() {
             <button onClick={handleGoogle} disabled={loading} style={btnStyle("outline")}>Continue with Google</button>
             <button onClick={() => setAuthMode("signup")} style={btnStyle("ghost")}>Sign Up with Email</button>
             <button onClick={() => setAuthMode("signin")} style={{ ...btnStyle("ghost"), marginTop:-4 }}>Sign In</button>
+            <button onClick={handleGuest} disabled={loading} style={{ background:"none", border:"none", color:"#555", fontSize:13, fontWeight:500, cursor:"pointer", padding:"10px 0", fontFamily:"'DM Sans'", textDecoration:"underline", textDecorationColor:"#333" }}>
+              Continue as Guest
+            </button>
             <p style={{ textAlign:"center", color:"#444", fontSize:11, marginTop:6 }}>By continuing, you agree to our Terms and Privacy Policy</p>
           </div>
         ) : (
