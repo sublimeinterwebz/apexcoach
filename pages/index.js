@@ -167,7 +167,7 @@ export default function Home() {
 // ── Call Gemini directly from browser (no serverless timeout) ──
 async function callGeminiDirectly(profile) {
   const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!key) throw new Error("NEXT_PUBLIC_GEMINI_API_KEY not set");
+  if (!key) throw new Error("API key missing — add NEXT_PUBLIC_GEMINI_API_KEY in Vercel settings and redeploy");
 
   const days     = parseInt(profile.trainingDays) || 4;
   const injuries = (profile.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
@@ -177,43 +177,59 @@ async function callGeminiDirectly(profile) {
   const goal     = { fat_loss:"fat loss", muscle_gain:"muscle gain", maintain:"maintain" }[profile.primaryGoal] || "maintain";
   const calNote  = profile.primaryGoal === "fat_loss" ? "300kcal deficit" : profile.primaryGoal === "muscle_gain" ? "300kcal surplus" : "maintenance calories";
 
-  const prompt = `You are a fitness coach. Return ONLY a JSON object (no markdown).
+  const prompt = `You are a fitness coach. Return ONLY a JSON object, no markdown, no explanation.
 
 User: ${profile.age}yr ${profile.gender}, ${profile.weight}${profile.weightUnit}, ${profile.height}${profile.heightUnit}, ${profile.fitnessLevel || "beginner"}, goal: ${goal}, ${days} training days/week, location: ${loc}, equipment: ${equip}, injuries: ${injuries}, diet: ${diet}, sleep: ${profile.sleepHours || "7h"}, stress: ${profile.stressLevel || "medium"}, job: ${profile.jobType || "sedentary"}.
 
-Generate exactly 7 days (${days} workouts, ${7-days} rest). Only use: ${equip}. Avoid exercises stressing: ${injuries}. Calories: ${calNote}. Respect diet: ${diet}.
+Generate exactly 7 days (${days} workouts, ${7 - days} rest). Only use: ${equip}. Avoid exercises stressing: ${injuries}. Calories: ${calNote}. Respect diet: ${diet}.
 
-Return this exact JSON structure with all 7 days filled:
-{"weekPlan":[{"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push Day","muscleGroups":"Chest, Shoulders","estimatedDuration":"45 min","exercises":[{"name":"Push-up","sets":3,"reps":"12","restSeconds":60,"notes":""}]},{"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}],"nutrition":{"dailyCalories":2200,"macros":{"protein":160,"carbs":220,"fat":70},"meals":{"breakfast":{"name":"Protein Oats","calories":450,"protein":32,"carbs":50,"fat":10,"ingredients":["80g oats","1 scoop whey","1 banana","200ml milk"],"instructions":"Cook oats with milk, stir in protein off heat, top with banana."},"lunch":{"name":"Chicken Rice Bowl","calories":600,"protein":48,"carbs":65,"fat":12,"ingredients":["180g chicken breast","150g white rice","vegetables","olive oil"],"instructions":"Grill chicken, cook rice, steam veg, serve together."},"dinner":{"name":"Salmon & Sweet Potato","calories":650,"protein":42,"carbs":58,"fat":20,"ingredients":["180g salmon","200g sweet potato","mixed salad","lemon","olive oil"],"instructions":"Bake salmon at 200C for 18min, roast diced potato for 25min."},"snacks":[{"name":"Greek Yogurt & Berries","calories":180,"protein":15,"carbs":18,"fat":3,"ingredients":["200g Greek yogurt","100g mixed berries","1 tsp honey"],"instructions":"Mix together and serve cold."}]},"nutritionNotes":"Specific note for this user based on their goal and diet."},"coachNote":"One sentence personal coaching note for this specific user."}`;
+Return this exact JSON with all 7 days:
+{"weekPlan":[{"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push Day","muscleGroups":"Chest, Shoulders","estimatedDuration":"45 min","exercises":[{"name":"Push-up","sets":3,"reps":"12","restSeconds":60,"notes":""}]},{"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}],"nutrition":{"dailyCalories":2200,"macros":{"protein":160,"carbs":220,"fat":70},"meals":{"breakfast":{"name":"Protein Oats","calories":450,"protein":32,"carbs":50,"fat":10,"ingredients":["80g oats","1 scoop whey","1 banana","200ml milk"],"instructions":"Cook oats with milk, stir in protein off heat, top with banana."},"lunch":{"name":"Chicken Rice Bowl","calories":600,"protein":48,"carbs":65,"fat":12,"ingredients":["180g chicken breast","150g white rice","vegetables","olive oil"],"instructions":"Grill chicken, cook rice, steam veg, serve together."},"dinner":{"name":"Salmon Sweet Potato","calories":650,"protein":42,"carbs":58,"fat":20,"ingredients":["180g salmon","200g sweet potato","mixed salad","lemon"],"instructions":"Bake salmon 200C 18min, roast diced potato 25min."},"snacks":[{"name":"Greek Yogurt Berries","calories":180,"protein":15,"carbs":18,"fat":3,"ingredients":["200g Greek yogurt","100g berries","honey"],"instructions":"Mix and serve cold."}]},"nutritionNotes":"Note specific to this user."},"coachNote":"One coaching note for this specific user."}`;
+
+  const errors = [];
 
   for (const model of ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]) {
     try {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.8, maxOutputTokens: 2500, responseMimeType: "application/json" },
-          }),
-        }
-      );
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.8, maxOutputTokens: 2500 },
+        }),
+      });
+
       const data = await r.json();
-      if (!r.ok) { console.error(model, r.status, data?.error?.message); continue; }
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      if (!r.ok) {
+        const msg = `${model}: HTTP ${r.status} — ${data?.error?.message || JSON.stringify(data).slice(0, 150)}`;
+        errors.push(msg);
+        continue;
+      }
+
+      const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+      if (!text) {
+        errors.push(`${model}: empty response (finishReason: ${data?.candidates?.[0]?.finishReason})`);
+        continue;
+      }
+
       const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-      if (!clean) continue;
       return JSON.parse(clean);
-    } catch(e) { console.error(model, e.message); }
+
+    } catch (e) {
+      errors.push(`${model}: ${e.message}`);
+    }
   }
-  throw new Error("All Gemini models failed");
+
+  throw new Error("Plan generation failed:\n" + errors.join("\n"));
 }
 
 // ── Generating Screen — saves profile THEN navigates ──
 function GeneratingScreen({ user, form, setProfile, onDone }) {
-  const [status, setStatus] = useState("saving");
-  const [step,   setStep]   = useState("Saving your profile...");
+  const [status,   setStatus]   = useState("saving");
+  const [step,     setStep]     = useState("Saving your profile...");
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     async function run() {
@@ -235,18 +251,21 @@ function GeneratingScreen({ user, form, setProfile, onDone }) {
           plan = await callGeminiDirectly(newProfile);
           if (user && plan) await saveWeekPlan(user.uid, 1, plan);
         } catch (planErr) {
-          console.error("Plan generation error:", planErr);
+          // Show real error — don't swallow it
+          setErrorMsg(planErr.message);
+          setStep("Plan generation failed — you can retry from your dashboard.");
         }
 
         // 3. Cache in localStorage
         const toCache = { ...newProfile, plan };
         try { localStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(toCache)); } catch {}
 
-        // 4. Update context
+        // 4. Update context — let user proceed even if plan failed
         setProfile(toCache);
         setStatus("ready");
       } catch(e) {
         console.error("Save error:", e);
+        setErrorMsg(e.message);
         try { localStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(newProfile)); } catch {}
         setProfile(newProfile);
         setStatus("ready");
@@ -258,23 +277,30 @@ function GeneratingScreen({ user, form, setProfile, onDone }) {
 
   return (
     <Screen style={{ alignItems:"center", justifyContent:"center" }}>
-      <div style={{ textAlign:"center", zIndex:1, padding:"0 32px" }}>
+      <div style={{ textAlign:"center", zIndex:1, padding:"0 32px", width:"100%" }}>
         <PulsingRing />
         <div style={{ fontFamily:"'Bebas Neue'", fontSize:32, letterSpacing:2, marginTop:28 }}>
-          {status === "ready" ? "PLAN READY" : "BUILDING YOUR PLAN"}
+          {status === "ready" ? "PROFILE SAVED" : "BUILDING YOUR PLAN"}
         </div>
         <p style={{ color:"#777", fontSize:13, marginTop:10, lineHeight:1.7 }}>
           {status === "ready"
-            ? "Your personalized workout and nutrition plan is ready."
+            ? errorMsg
+              ? "Profile saved. Plan generation had an issue — you can generate from your dashboard."
+              : "Your personalized workout and nutrition plan is ready."
             : step}
         </p>
         {status !== "ready" && <LoadingDots />}
-        {status === "error" && <p style={{ color:"#ff5e5e", fontSize:12, marginTop:10 }}>Save failed — check your connection and try again.</p>}
+        {errorMsg && status === "ready" && (
+          <div style={{ marginTop:12, padding:"10px 14px", background:"rgba(255,94,94,0.06)", border:"1px solid rgba(255,94,94,0.2)", borderRadius:10, textAlign:"left" }}>
+            <div style={{ fontSize:10, color:"#ff5e5e", letterSpacing:2, fontWeight:600, marginBottom:6 }}>ERROR DETAILS</div>
+            <p style={{ fontSize:11, color:"#cc4444", lineHeight:1.6, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{errorMsg}</p>
+          </div>
+        )}
         <button
           onClick={status === "ready" ? onDone : undefined}
-          style={{ ...btnStyle("primary"), marginTop:28, width:"100%", opacity: status === "ready" ? 1 : 0.35, cursor: status === "ready" ? "pointer" : "default" }}
+          style={{ ...btnStyle("primary"), marginTop:20, width:"100%", opacity: status === "ready" ? 1 : 0.35, cursor: status === "ready" ? "pointer" : "default" }}
         >
-          {status === "ready" ? "View My Plan" : "Saving your profile..."}
+          {status === "ready" ? "Continue to Dashboard" : "Please wait..."}
         </button>
       </div>
     </Screen>
