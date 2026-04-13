@@ -7,14 +7,24 @@ import { AuthProvider, useAuth } from "../lib/AuthContext";
 const PUBLIC_ROUTES = ["/"];
 
 function RouteGuard({ children }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
     const isPublic = PUBLIC_ROUTES.includes(router.pathname);
-    if (!user && !isPublic) router.replace("/");
-  }, [user, loading, router.pathname]);
+
+    if (!user && !isPublic) {
+      // Not signed in — send to welcome
+      router.replace("/");
+    } else if (user && isPublic && profile?.onboardingComplete) {
+      // Signed in + onboarded — skip welcome, go to dashboard
+      router.replace("/dashboard");
+    } else if (user && !isPublic && !profile?.onboardingComplete) {
+      // Signed in but NOT onboarded — send to onboarding
+      router.replace("/");
+    }
+  }, [user, profile, loading, router.pathname]);
 
   if (loading) return (
     <div style={{ background:"#080808", height:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav } from "../components/shared";
+import { useAuth } from "../lib/AuthContext";
+import { signOut } from "../lib/firebase";
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const TODAY = 2;
@@ -31,7 +33,17 @@ const MACROS = [
 
 export default function Dashboard() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [selectedDay, setSelectedDay] = useState(TODAY);
+
+  // Derive first name from profile or Google display name
+  const firstName = profile?.displayName?.split(" ")[0]
+    || user?.displayName?.split(" ")[0]
+    || profile?.email?.split("@")[0]
+    || "Athlete";
+
+  const userInitial = firstName[0]?.toUpperCase() || "A";
+  const currentWeek = profile?.currentWeek || 1;
   const day = WEEK_PLAN[selectedDay];
 
   return (
@@ -42,14 +54,14 @@ export default function Dashboard() {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:52, paddingBottom:16 }}>
           <div>
             <div style={{ fontSize:10, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:2 }}>APEXCOACH</div>
-            <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:1, lineHeight:1 }}>Good Morning, Hussain</div>
+            <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:1, lineHeight:1 }}>Good Morning, {firstName}</div>
           </div>
-          <div style={{ width:38, height:38, borderRadius:"50%", background:"linear-gradient(135deg,#00ff80,#00aa55)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#000" }}>H</div>
+          <div style={{ width:38, height:38, borderRadius:"50%", background:"linear-gradient(135deg,#00ff80,#00aa55)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#000" }}>{userInitial}</div>
         </div>
 
         {/* Week label */}
         <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #161616", paddingTop:10, marginBottom:14 }}>
-          <span style={{ fontSize:10, color:"#2a2a2a", letterSpacing:2, fontWeight:600 }}>WEEK 3</span>
+          <span style={{ fontSize:10, color:"#2a2a2a", letterSpacing:2, fontWeight:600 }}>`WEEK ${currentWeek}`</span>
           <span style={{ fontSize:10, color:"#00ff80", letterSpacing:1.5, fontWeight:600 }}>4 of 5 sessions done</span>
         </div>
 

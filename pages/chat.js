@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav } from "../components/shared";
+import { useAuth } from "../lib/AuthContext";
 
 const QUICK_PROMPTS = [
   "Should I train with muscle soreness?",
@@ -13,19 +14,11 @@ const QUICK_PROMPTS = [
 // NEXT_PUBLIC_GEMINI_API_KEY=your_key_here
 const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
-const SYSTEM_CONTEXT = `You are ApexCoach, an elite AI personal trainer and nutritionist. You are speaking with Hussain, a gym-goer currently on Week 3 of his program.
 
-His profile:
-- Goal: Muscle gain
-- Training: 5 days/week, gym
-- Current plan: Push/Pull/Legs split
-- This week: Completed 4/5 sessions, missed Pull Day
-- Notable lifts: Barbell Back Squat 100kg x8, Romanian Deadlift 80kg x10
-
-Speak like a knowledgeable, direct, encouraging trainer. Be concise — 2-4 sentences max unless a detailed answer is genuinely needed. No fluff, no excessive motivation. Give real, specific advice. Never use emojis.`;
 
 export default function Chat() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input,    setInput]    = useState("");
   const [loading,  setLoading]  = useState(false);
@@ -49,7 +42,7 @@ export default function Chat() {
     try {
       // Build Gemini request payload
       const geminiContents = [
-        { role:"user", parts:[{ text: SYSTEM_CONTEXT + "\n\n---\n\nNow respond to the following conversation:" }] },
+        { role:"user", parts:[{ text: buildSystemPrompt() + "\n\n---\n\nNow respond to the following conversation:" }] },
         { role:"model", parts:[{ text:"Understood. I am ApexCoach, ready to help Hussain." }] },
         ...nextMsgs.map(m => ({
           role: m.role === "user" ? "user" : "model",
