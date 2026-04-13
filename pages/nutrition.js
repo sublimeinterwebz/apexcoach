@@ -81,8 +81,8 @@ export default function Nutrition() {
             {/* Meals */}
             <div style={{ fontSize:9, color:"#444", letterSpacing:2.5, fontWeight:600, marginBottom:10 }}>DAILY MEALS</div>
 
-            {plan.meals && Object.entries(plan.meals).map(([mealKey, meal]) => {
-              if (mealKey === "snacks") return null;
+            {plan.meals && ["breakfast", "lunch", "dinner"].filter(k => plan.meals[k]).map((mealKey) => {
+              const meal = plan.meals[mealKey]; if (!meal) return null;
               const isOpen = expanded === mealKey;
               return (
                 <MealCard key={mealKey} mealKey={mealKey} meal={meal} isOpen={isOpen} onToggle={() => setExpanded(isOpen ? null : mealKey)} />

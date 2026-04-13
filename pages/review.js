@@ -2,28 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
-
-const STATS = [
-  { label:"Sessions",    value:"4/5",  sub:"completed"    },
-  { label:"Consistency", value:"80%",  sub:"this week"    },
-  { label:"Volume",      value:"+12%", sub:"vs last week" },
-];
-
-const AI_FEEDBACK = "Strong week. You hit 4 of 5 sessions and pushed heavier on squats and leg press — lower body volume is up 18%. The missed Pull Day means your back is slightly undertrained. Week 4 compensates with an extra back movement.";
-
-const EXERCISES = [
-  { name:"Barbell Back Squat", best:"100kg × 8",  change:"+10kg", status:"improved"   },
-  { name:"Romanian Deadlift",  best:"80kg × 10",  change:"+5kg",  status:"improved"   },
-  { name:"Leg Press",          best:"140kg × 14", change:"+15kg", status:"improved"   },
-  { name:"Walking Lunges",     best:"20kg × 12",  change:"Same",  status:"maintained" },
-  { name:"Pull Day",           best:"Skipped",    change:"Missed",status:"missed"     },
-];
-
-const PLAN_CHANGES = [
-  "Pendlay Row added to Pull Day for missed volume",
-  "Squat load increased by 5kg based on progression",
-  "Leg frequency reduced from 2x to 1x for recovery",
-];
+import { getWeekPlan } from "../lib/firebase";
 
 const STATUS_STYLE = {
   improved:   { color:"#00ff80", bg:"rgba(0,255,128,0.08)",  border:"rgba(0,255,128,0.25)" },
@@ -32,22 +11,38 @@ const STATUS_STYLE = {
 };
 
 const GEN_STEPS = [
-  { label:"Analyzing week 3 performance",          threshold:20  },
-  { label:"Identifying progression opportunities", threshold:42  },
-  { label:"Calculating new loads and volume",      threshold:63  },
-  { label:"Building nutrition targets",            threshold:82  },
-  { label:"Finalizing Week 4 plan",                threshold:100 },
+  { label:"Analyzing your week's performance",      threshold:20  },
+  { label:"Identifying progression opportunities",  threshold:42  },
+  { label:"Calculating new loads and volume",       threshold:63  },
+  { label:"Building nutrition targets",             threshold:82  },
+  { label:"Finalizing next week's plan",            threshold:100 },
 ];
 
 export default function Review() {
-  const { loading } = useRequireAuth();
   const router = useRouter();
-  if (loading) return null;
-  const [phase,    setPhase]    = useState("review");
-  const [page,     setPage]     = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [genStep,  setGenStep]  = useState(0);
+  const { user, profile, loading } = useRequireAuth();
+  const [plan,      setPlan]      = useState(null);
+  const [phase,     setPhase]     = useState("review");
+  const [page,      setPage]      = useState(0);
+  const [progress,  setProgress]  = useState(0);
+  const [genStep,   setGenStep]   = useState(0);
   const intervalRef = useRef(null);
+
+  if (loading) return null;
+
+  const currentWeek = profile?.currentWeek || 1;
+
+  useEffect(() => {
+    if (!user) return;
+    async function load() {
+      try {
+        if (profile?.plan?.weekPlan) { setPlan(profile.plan); return; }
+        const p = await getWeekPlan(user.uid, currentWeek);
+        if (p) setPlan(p);
+      } catch(e) { console.error(e); }
+    }
+    load();
+  }, [user]);
 
   const startGeneration = () => {
     setPhase("generating"); setProgress(0); setGenStep(0);
@@ -65,21 +60,36 @@ export default function Review() {
     setGenStep(s === -1 ? GEN_STEPS.length : s);
   }, [progress]);
 
+  // Build real exercise list from plan
+  const exercises = plan ? plan.weekPlan
+    ?.filter(d => d.type === "workout")
+    .flatMap(d => (d.exercises || []).map(e => ({ ...e, day: d.sessionLabel }))) : [];
+
+  const weekPlan = plan?.weekPlan || [];
+  const totalWorkouts = weekPlan.filter(d => d.type === "workout").length;
+
   return (
     <Screen>
-      {phase === "review"     && <ReviewPhase     page={page} setPage={setPage} onGenerate={startGeneration} />}
+      {phase === "review"     && <ReviewPhase page={page} setPage={setPage} onGenerate={startGeneration} plan={plan} totalWorkouts={totalWorkouts} exercises={exercises} currentWeek={currentWeek} />}
       {phase === "generating" && <GeneratingPhase progress={progress} currentStep={genStep} />}
-      {phase === "ready"      && <ReadyPhase router={router} />}
+      {phase === "ready"      && <ReadyPhase router={router} currentWeek={currentWeek} />}
       {phase === "review" && <BottomNav active="review" router={router} />}
     </Screen>
   );
 }
 
-function ReviewPhase({ page, setPage, onGenerate }) {
+function ReviewPhase({ page, setPage, onGenerate, plan, totalWorkouts, exercises, currentWeek }) {
+  // For now show plan summary stats since we don't track real session logs yet
+  const stats = [
+    { label:"Exercises", value: exercises.length.toString(), sub:"in your plan" },
+    { label:"Sessions",  value: totalWorkouts.toString(),    sub:"this week" },
+    { label:"Week",      value: currentWeek.toString(),      sub:"current week" },
+  ];
+
   return (
     <div className="fu" style={{ flex:1, display:"flex", flexDirection:"column", padding:"44px 20px 80px", position:"relative", zIndex:1 }}>
       <div style={{ marginBottom:12 }}>
-        <div style={{ fontSize:10, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:4 }}>WEEK 3 COMPLETE</div>
+        <div style={{ fontSize:10, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:4 }}>WEEK {currentWeek}</div>
         <div style={{ fontFamily:"'Bebas Neue'", fontSize:34, letterSpacing:1.5, lineHeight:1.05 }}>Your Weekly <span style={{ color:"#00ff80" }}>Review</span></div>
       </div>
       <div style={{ display:"flex", gap:5, marginBottom:14 }}>
@@ -89,9 +99,9 @@ function ReviewPhase({ page, setPage, onGenerate }) {
       </div>
 
       {page === 0 ? (
-        <div className="fu" key="p0" style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
+        <div key="p0" style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
           <div style={{ display:"flex", gap:8 }}>
-            {STATS.map(({ label,value,sub }) => (
+            {stats.map(({ label, value, sub }) => (
               <div key={label} style={{ flex:1, background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:12, padding:"11px 8px", textAlign:"center" }}>
                 <div style={{ fontFamily:"'Bebas Neue'", fontSize:26, letterSpacing:1, color:"#00ff80", lineHeight:1 }}>{value}</div>
                 <div style={{ fontSize:9, color:"#333", letterSpacing:1.5, fontWeight:600, marginTop:4 }}>{label.toUpperCase()}</div>
@@ -100,34 +110,42 @@ function ReviewPhase({ page, setPage, onGenerate }) {
             ))}
           </div>
           <div style={{ background:"#0a0a0a", border:"1px solid #1a1a1a", borderLeft:"2px solid #00ff80", borderRadius:12, padding:"13px", flex:1 }}>
-            <div style={{ fontSize:9, color:"#00ff80", letterSpacing:2.5, fontWeight:600, marginBottom:9 }}>AI TRAINER FEEDBACK</div>
-            <p style={{ fontSize:13, color:"#888", lineHeight:1.68 }}>{AI_FEEDBACK}</p>
+            <div style={{ fontSize:9, color:"#00ff80", letterSpacing:2.5, fontWeight:600, marginBottom:9 }}>YOUR PLAN SUMMARY</div>
+            {plan ? (
+              <>
+                <p style={{ fontSize:13, color:"#888", lineHeight:1.68, marginBottom:10 }}>{plan.coachNote || "Your personalized plan is ready. Stay consistent and track your workouts."}</p>
+                <p style={{ fontSize:12, color:"#555", lineHeight:1.65 }}>{plan.nutrition?.nutritionNotes || ""}</p>
+              </>
+            ) : (
+              <p style={{ fontSize:13, color:"#555", lineHeight:1.68 }}>Generate your plan from the dashboard to see your personalized review here.</p>
+            )}
           </div>
           <button onClick={() => setPage(1)} style={{ width:"100%", padding:"13px", background:"#0e0e0e", border:"1px solid #1e1e1e", borderRadius:12, fontFamily:"'DM Sans'", fontSize:13, fontWeight:600, color:"#555", cursor:"pointer" }}>
             See Exercise Breakdown
           </button>
         </div>
       ) : (
-        <div className="fu" key="p1" style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:12, padding:"13px", flex:1 }}>
+        <div key="p1" style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:12, padding:"13px", flex:1, overflowY:"auto" }}>
             <div style={{ fontSize:9, color:"#333", letterSpacing:2.5, fontWeight:600, marginBottom:13 }}>EXERCISE BREAKDOWN</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:13 }}>
-              {EXERCISES.map(({ name,best,change,status }) => {
-                const s = STATUS_STYLE[status];
-                return (
-                  <div key={name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+            {exercises.length === 0 ? (
+              <div style={{ fontSize:12, color:"#333", textAlign:"center", padding:"24px 0" }}>No plan generated yet</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {exercises.map(({ name, sets, reps, day }, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600, color: status==="missed"?"#222":"#d0d0d0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{name}</div>
-                      <div style={{ fontSize:10, color:"#2a2a2a", marginTop:2 }}>{best}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:"#d0d0d0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{name}</div>
+                      <div style={{ fontSize:10, color:"#2a2a2a", marginTop:2 }}>{sets} sets · {reps} reps · {day}</div>
                     </div>
-                    <div style={{ padding:"3px 11px", borderRadius:20, fontSize:10, fontWeight:700, flexShrink:0, background:s.bg, border:`1px solid ${s.border}`, color:s.color }}>{change}</div>
+                    <div style={{ padding:"3px 11px", borderRadius:20, fontSize:10, fontWeight:700, flexShrink:0, background:STATUS_STYLE.improved.bg, border:`1px solid ${STATUS_STYLE.improved.border}`, color:STATUS_STYLE.improved.color }}>Planned</div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           <button onClick={onGenerate} style={{ width:"100%", padding:"15px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, fontFamily:"'DM Sans'", fontSize:14, fontWeight:700, color:"#000", cursor:"pointer" }}>
-            Generate Week 4 Plan
+            Generate Next Week's Plan
           </button>
         </div>
       )}
@@ -146,13 +164,13 @@ function GeneratingPhase({ progress, currentStep }) {
         </svg>
         <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:22, color:"#00ff80", letterSpacing:1 }}>{Math.round(progress)}%</div>
       </div>
-      <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, letterSpacing:2, marginBottom:6, textAlign:"center" }}>Building Your Plan</div>
-      <div style={{ fontSize:11, color:"#333", marginBottom:24, textAlign:"center" }}>Powered by AI — this takes a few seconds</div>
+      <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, letterSpacing:2, marginBottom:6, textAlign:"center" }}>Building Next Plan</div>
+      <div style={{ fontSize:11, color:"#333", marginBottom:24, textAlign:"center" }}>Powered by AI</div>
       <div style={{ width:"100%", height:3, background:"#141414", borderRadius:3, marginBottom:24, overflow:"hidden" }}>
         <div style={{ height:"100%", width:`${progress}%`, background:"linear-gradient(90deg,#00ff80,#00cc55)", borderRadius:3, transition:"width .1s linear" }}/>
       </div>
       <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:10 }}>
-        {GEN_STEPS.map(({ label,threshold },i) => {
+        {GEN_STEPS.map(({ label, threshold }, i) => {
           const done   = progress >= threshold;
           const active = !done && i === currentStep;
           return (
@@ -167,29 +185,18 @@ function GeneratingPhase({ progress, currentStep }) {
   );
 }
 
-function ReadyPhase({ router }) {
+function ReadyPhase({ router, currentWeek }) {
   return (
     <div className="fu" style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 24px", position:"relative", zIndex:1 }}>
       <div style={{ position:"relative", width:110, height:110, marginBottom:22 }}>
         <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:"radial-gradient(circle,rgba(0,255,128,.14) 0%,transparent 70%)", animation:"glow 2s ease-in-out infinite" }}/>
-        <div style={{ position:"absolute", inset:10, borderRadius:"50%", background:"linear-gradient(135deg,rgba(0,255,128,.12),rgba(0,200,85,.04))", border:"1px solid rgba(0,255,128,.25)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:30, color:"#00ff80", letterSpacing:1 }}>W4</div>
+        <div style={{ position:"absolute", inset:10, borderRadius:"50%", background:"linear-gradient(135deg,rgba(0,255,128,.12),rgba(0,200,85,.04))", border:"1px solid rgba(0,255,128,.25)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:28, color:"#00ff80", letterSpacing:1 }}>W{currentWeek + 1}</div>
       </div>
       <div style={{ fontSize:10, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:8 }}>PLAN READY</div>
-      <div style={{ fontFamily:"'Bebas Neue'", fontSize:40, letterSpacing:2, textAlign:"center", lineHeight:1, marginBottom:8 }}>Week 4 Is Live</div>
-      <div style={{ fontSize:13, color:"#444", textAlign:"center", lineHeight:1.7, marginBottom:22 }}>Your plan is updated based on Week 3. Push harder — you earned it.</div>
-      <div style={{ width:"100%", background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:14, padding:"14px 16px", marginBottom:18 }}>
-        <div style={{ fontSize:9, color:"#333", letterSpacing:2.5, fontWeight:600, marginBottom:12 }}>WHAT CHANGED</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          {PLAN_CHANGES.map((c,i) => (
-            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-              <div style={{ width:16, height:16, borderRadius:4, flexShrink:0, marginTop:1, background:"rgba(0,255,128,.1)", border:"1px solid rgba(0,255,128,.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#00ff80", fontWeight:700 }}>+</div>
-              <div style={{ fontSize:12, color:"#666", lineHeight:1.55 }}>{c}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <div style={{ fontFamily:"'Bebas Neue'", fontSize:40, letterSpacing:2, textAlign:"center", lineHeight:1, marginBottom:8 }}>Week {currentWeek + 1} Is Live</div>
+      <div style={{ fontSize:13, color:"#444", textAlign:"center", lineHeight:1.7, marginBottom:22 }}>Your plan has been updated. Stay consistent and keep pushing.</div>
       <button onClick={() => router.push("/dashboard")} style={{ width:"100%", padding:"15px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, fontFamily:"'DM Sans'", fontSize:14, fontWeight:700, color:"#000", cursor:"pointer" }}>
-        View Week 4 Plan
+        View New Plan
       </button>
     </div>
   );
