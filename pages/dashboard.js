@@ -233,7 +233,7 @@ async function callGeminiDirectly(profile) {
   const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"];
   for (const model of models) {
     try {
-      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + key;
+      const url = "https://generativelanguage.googleapis.com/v1/models/" + model + ":generateContent?key=" + key;
       const r = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

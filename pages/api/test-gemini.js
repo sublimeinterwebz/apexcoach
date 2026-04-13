@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   for (const model of ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]) {
     try {
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
