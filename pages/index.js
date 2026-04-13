@@ -161,25 +161,33 @@ export default function Home() {
 
 // ── Generating Screen (saves profile to Firestore) ────
 function GeneratingScreen({ form, onDone }) {
-  const { user } = useAuth();
-  const [saved, setSaved] = useState(false);
+  const { user, setProfile } = useAuth();
+  const [saved,   setSaved]   = useState(false);
+  const [canGo,   setCanGo]   = useState(false); // only allow navigation after save is done
 
   useEffect(() => {
     async function save() {
       if (user && !saved) {
+        const newProfile = {
+          displayName: user.displayName || "",
+          email: user.email || "",
+          ...form,
+          onboardingComplete: true,
+          currentWeek: 1,
+        };
         try {
-          await saveUserProfile(user.uid, {
-            displayName: user.displayName || "",
-            email: user.email || "",
-            ...form,
-            onboardingComplete: true,
-            currentWeek: 1,
-          });
-        } catch(e) { console.error("Profile save error:", e); }
+          await saveUserProfile(user.uid, newProfile);
+          // ✅ Update local AuthContext state immediately so RouteGuard
+          // sees onboardingComplete:true before we navigate
+          setProfile(newProfile);
+        } catch(e) {
+          console.error("Profile save error:", e);
+        }
         setSaved(true);
+        setCanGo(true);
       }
     }
-    const t = setTimeout(save, 800);
+    const t = setTimeout(save, 1000);
     return () => clearTimeout(t);
   }, [user]);
 
@@ -192,7 +200,12 @@ function GeneratingScreen({ form, onDone }) {
           Analyzing your profile and crafting a personalized workout and nutrition plan...
         </p>
         <LoadingDots />
-        <button onClick={onDone} style={{ ...btnStyle("primary"), marginTop:32, width:"100%" }}>View My Plan</button>
+        <button
+          onClick={() => canGo && onDone()}
+          style={{ ...btnStyle("primary"), marginTop:32, width:"100%", opacity: canGo ? 1 : 0.4 }}
+        >
+          {canGo ? "View My Plan" : "Saving your profile..."}
+        </button>
       </div>
     </Screen>
   );
