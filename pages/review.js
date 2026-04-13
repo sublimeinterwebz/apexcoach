@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav } from "../components/shared";
+import { useRequireAuth } from "../lib/useRequireAuth";
 
 const STATS = [
   { label:"Sessions",    value:"4/5",  sub:"completed"    },
@@ -39,7 +40,9 @@ const GEN_STEPS = [
 ];
 
 export default function Review() {
+  const { loading } = useRequireAuth();
   const router = useRouter();
+  if (loading) return null;
   const [phase,    setPhase]    = useState("review");
   const [page,     setPage]     = useState(0);
   const [progress, setProgress] = useState(0);

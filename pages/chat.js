@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav } from "../components/shared";
-import { useAuth } from "../lib/AuthContext";
+import { useRequireAuth } from "../lib/useRequireAuth";
 
 const QUICK_PROMPTS = [
   "Should I train with muscle soreness?",
@@ -18,7 +18,8 @@ const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 export default function Chat() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useRequireAuth();
+  if (loading) return null;
   const [messages, setMessages] = useState([]);
   const [input,    setInput]    = useState("");
   const [loading,  setLoading]  = useState(false);

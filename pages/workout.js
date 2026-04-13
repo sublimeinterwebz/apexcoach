@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen } from "../components/shared";
+import { useRequireAuth } from "../lib/useRequireAuth";
 
 const EXERCISES = [
   { name:"Barbell Back Squat", muscle:"Quads · Glutes",      sets:4, reps:"8–10",    rest:90 },
@@ -14,7 +15,9 @@ function buildSets(count) {
 }
 
 export default function Workout() {
+  const { loading } = useRequireAuth();
   const router = useRouter();
+  if (loading) return null;
   const [phase,   setPhase]   = useState("preview"); // preview | active | finished
   const [exIdx,   setExIdx]   = useState(0);
   const [allSets, setAllSets] = useState(EXERCISES.map(e => buildSets(e.sets)));

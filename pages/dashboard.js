@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav } from "../components/shared";
-import { useAuth } from "../lib/AuthContext";
+import { useRequireAuth } from "../lib/useRequireAuth";
 import { signOut } from "../lib/firebase";
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -33,7 +33,8 @@ const MACROS = [
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useRequireAuth();
+  if (loading) return null;
   const [selectedDay, setSelectedDay] = useState(TODAY);
 
   // Derive first name from profile or Google display name

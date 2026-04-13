@@ -1,23 +1,14 @@
-import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile } from "../lib/firebase";
-import { useAuth } from "../lib/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Screen, btnStyle, inputStyle, Label, Chip, RadioCard } from "../components/shared";
+import { Screen, btnStyle, inputStyle, Label, RadioCard } from "../components/shared";
+import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile } from "../lib/firebase";
+import { useAuth } from "../lib/AuthContext";
 
 const STEPS = ["Profile", "Health", "Lifestyle", "Goals"];
 
-const EQUIPMENT_OPTIONS = [
-  "Barbell & Plates","Dumbbells","Cables/Pulleys","Smith Machine",
-  "Pull-up Bar","Resistance Bands","Kettlebells","Bench","No Equipment",
-];
-const DIETARY_OPTIONS = [
-  "No Restrictions","Vegetarian","Vegan","Keto","Halal",
-  "Gluten-Free","Dairy-Free","Nut Allergy","Low Carb",
-];
-const INJURY_OPTIONS = [
-  "None","Lower Back","Knee","Shoulder","Neck",
-  "Hip","Wrist/Elbow","Ankle","Heart Condition",
-];
+const EQUIPMENT_OPTIONS = ["Barbell & Plates","Dumbbells","Cables/Pulleys","Smith Machine","Pull-up Bar","Resistance Bands","Kettlebells","Bench","No Equipment"];
+const DIETARY_OPTIONS   = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
+const INJURY_OPTIONS    = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
 
 function buildForm() {
   return {
@@ -30,16 +21,31 @@ function buildForm() {
 }
 
 export default function Home() {
-  const router  = useRouter();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, profile, loading, setProfile } = useAuth();
+
   const [screen,   setScreen]   = useState("welcome");
   const [step,     setStep]     = useState(0);
-  const [authMode, setAuthMode] = useState(null); // null | "signin" | "signup"
+  const [authMode, setAuthMode] = useState(null);
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [authErr,  setAuthErr]  = useState("");
-  const [loading,  setLoading]  = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
   const [form,     setForm]     = useState(buildForm());
+
+  // Redirect logged-in + onboarded users straight to dashboard
+  useEffect(() => {
+    if (loading) return;
+    if (user && profile?.onboardingComplete) {
+      router.replace("/dashboard");
+    } else if (user && !profile?.onboardingComplete && screen === "welcome") {
+      // Signed in but not onboarded — go to onboarding steps
+      setScreen("onboarding");
+    }
+  }, [user, profile, loading]);
+
+  // Show spinner while resolving auth
+  if (loading) return <Spinner />;
 
   const setField  = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleArr = (k, v) => setForm(f => ({
@@ -48,40 +54,35 @@ export default function Home() {
   const progress = ((step + 1) / STEPS.length) * 100;
 
   const handleGoogle = async () => {
-    setLoading(true); setAuthErr("");
-    try {
-      await signInWithGoogle();
-      setScreen("onboarding");
-    } catch(e) { setAuthErr(e.message); }
-    finally { setLoading(false); }
+    setAuthLoading(true); setAuthErr("");
+    try { await signInWithGoogle(); }
+    catch(e) { setAuthErr(e.message); setAuthLoading(false); }
   };
 
   const handleGuest = async () => {
-    setLoading(true); setAuthErr("");
-    try {
-      await signInAnonymously();
-      setScreen("onboarding");
-    } catch(e) { setAuthErr(e.message); }
-    finally { setLoading(false); }
+    setAuthLoading(true); setAuthErr("");
+    try { await signInAnonymously(); }
+    catch(e) { setAuthErr(e.message); setAuthLoading(false); }
   };
 
   const handleEmailAuth = async () => {
-    setLoading(true); setAuthErr("");
+    setAuthLoading(true); setAuthErr("");
     try {
       if (authMode === "signup") await signUpWithEmail(email, password);
       else await signInWithEmail(email, password);
-      setScreen("onboarding");
     } catch(e) {
       setAuthErr(e.code === "auth/user-not-found" || e.code === "auth/wrong-password"
         ? "Invalid email or password." : e.message);
-    } finally { setLoading(false); }
+      setAuthLoading(false);
+    }
   };
 
+  // ── WELCOME SCREEN ────────────────────────────────────
   if (screen === "welcome") return (
     <Screen style={{ justifyContent:"space-between" }}>
       <div style={{ padding:"56px 24px 0", position:"relative", zIndex:1 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:44 }}>
-          <div style={{ width:36, height:36, borderRadius:8, background:"linear-gradient(135deg,#00ff80,#00cc66)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:20, color:"#000", letterSpacing:1 }}>A</div>
+          <div style={{ width:36, height:36, borderRadius:8, background:"linear-gradient(135deg,#00ff80,#00cc66)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:20, color:"#000" }}>A</div>
           <span style={{ fontFamily:"'Bebas Neue'", fontSize:22, letterSpacing:3, color:"#00ff80" }}>APEXCOACH</span>
         </div>
         <div style={{ fontSize:11, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:8 }}>YOUR AI TRAINER</div>
@@ -93,15 +94,17 @@ export default function Home() {
         </p>
       </div>
       <div style={{ padding:"0 24px 48px", position:"relative", zIndex:1 }}>
-        {!authMode ? (
+        {authLoading ? (
+          <div style={{ textAlign:"center", color:"#00ff80", fontFamily:"'Bebas Neue'", fontSize:18, letterSpacing:2, padding:"20px 0" }}>SIGNING IN...</div>
+        ) : !authMode ? (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <button onClick={handleGoogle} disabled={loading} style={btnStyle("outline")}>Continue with Google</button>
+            <button onClick={handleGoogle} style={btnStyle("outline")}>Continue with Google</button>
             <button onClick={() => setAuthMode("signup")} style={btnStyle("ghost")}>Sign Up with Email</button>
             <button onClick={() => setAuthMode("signin")} style={{ ...btnStyle("ghost"), marginTop:-4 }}>Sign In</button>
-            <button onClick={handleGuest} disabled={loading} style={{ background:"none", border:"none", color:"#555", fontSize:13, fontWeight:500, cursor:"pointer", padding:"10px 0", fontFamily:"'DM Sans'", textDecoration:"underline", textDecorationColor:"#333" }}>
+            <button onClick={handleGuest} style={{ background:"none", border:"none", color:"#555", fontSize:13, fontWeight:500, cursor:"pointer", padding:"10px 0", fontFamily:"'DM Sans'", textDecoration:"underline", textDecorationColor:"#333" }}>
               Continue as Guest
             </button>
-            <p style={{ textAlign:"center", color:"#444", fontSize:11, marginTop:6 }}>By continuing, you agree to our Terms and Privacy Policy</p>
+            <p style={{ textAlign:"center", color:"#444", fontSize:11, marginTop:4 }}>By continuing, you agree to our Terms and Privacy Policy</p>
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -110,21 +113,23 @@ export default function Home() {
             </div>
             <input placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} type="email" />
             <input placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} type="password" />
-            {authErr && <div style={{ fontSize:12, color:"#ff5e5e", marginTop:-4 }}>{authErr}</div>}
-            <button onClick={handleEmailAuth} disabled={loading || !email || !password} style={{ ...btnStyle("primary"), opacity: loading ? 0.7 : 1 }}>
-              {loading ? "..." : authMode === "signup" ? "Create Account" : "Sign In"}
+            {authErr && <div style={{ fontSize:12, color:"#ff5e5e" }}>{authErr}</div>}
+            <button onClick={handleEmailAuth} disabled={!email || !password} style={{ ...btnStyle("primary"), opacity:(!email||!password)?0.5:1 }}>
+              {authMode === "signup" ? "Create Account" : "Sign In"}
             </button>
-            <button onClick={() => { setAuthMode(null); setAuthErr(""); }} style={{ background:"none", border:"none", color:"#555", fontSize:13, cursor:"pointer", marginTop:4 }}>Back</button>
+            <button onClick={() => { setAuthMode(null); setAuthErr(""); }} style={{ background:"none", border:"none", color:"#555", fontSize:13, cursor:"pointer", fontFamily:"'DM Sans'" }}>Back</button>
           </div>
         )}
       </div>
     </Screen>
   );
 
+  // ── GENERATING SCREEN ─────────────────────────────────
   if (screen === "generating") return (
-    <GeneratingScreen form={form} onDone={() => router.push("/dashboard")} />
+    <GeneratingScreen user={user} form={form} setProfile={setProfile} onDone={() => router.replace("/dashboard")} />
   );
 
+  // ── ONBOARDING STEPS ──────────────────────────────────
   return (
     <Screen>
       <div style={{ padding:"44px 20px 0", position:"relative", zIndex:1 }}>
@@ -137,7 +142,7 @@ export default function Home() {
         </div>
         <div style={{ display:"flex", gap:6, marginBottom:20 }}>
           {STEPS.map((s, i) => (
-            <div key={s} style={{ fontSize:9, letterSpacing:1.5, fontWeight:600, padding:"3px 10px", borderRadius:20, background: i===step?"rgba(0,255,128,0.15)":"transparent", color: i===step?"#00ff80": i<step?"#555":"#333", border:`1px solid ${i===step?"#00ff80":i<step?"#333":"#1a1a1a"}`, transition:"all 0.3s" }}>{s.toUpperCase()}</div>
+            <div key={s} style={{ fontSize:9, letterSpacing:1.5, fontWeight:600, padding:"3px 10px", borderRadius:20, background:i===step?"rgba(0,255,128,0.15)":"transparent", color:i===step?"#00ff80":i<step?"#555":"#333", border:`1px solid ${i===step?"#00ff80":i<step?"#333":"#1a1a1a"}`, transition:"all 0.3s" }}>{s.toUpperCase()}</div>
           ))}
         </div>
       </div>
@@ -159,64 +164,63 @@ export default function Home() {
   );
 }
 
-// ── Generating Screen (saves profile to Firestore) ────
-function GeneratingScreen({ form, onDone }) {
-  const { user, setProfile } = useAuth();
-  const [saved,   setSaved]   = useState(false);
-  const [canGo,   setCanGo]   = useState(false); // only allow navigation after save is done
+// ── Generating Screen — saves profile THEN navigates ──
+function GeneratingScreen({ user, form, setProfile, onDone }) {
+  const [status, setStatus] = useState("saving"); // saving | ready | error
 
   useEffect(() => {
     async function save() {
-      if (user && !saved) {
-        const newProfile = {
-          displayName: user.displayName || "",
-          email: user.email || "",
-          ...form,
-          onboardingComplete: true,
-          currentWeek: 1,
-        };
-        try {
-          await saveUserProfile(user.uid, newProfile);
-          // ✅ Update local AuthContext state immediately so RouteGuard
-          // sees onboardingComplete:true before we navigate
-          setProfile(newProfile);
-        } catch(e) {
-          console.error("Profile save error:", e);
-        }
-        setSaved(true);
-        setCanGo(true);
+      const newProfile = {
+        displayName: user?.displayName || "",
+        email: user?.email || "",
+        ...form,
+        onboardingComplete: true,
+        currentWeek: 1,
+      };
+      try {
+        if (user) await saveUserProfile(user.uid, newProfile);
+        // Update context immediately so dashboard auth check passes
+        setProfile(newProfile);
+        setStatus("ready");
+      } catch(e) {
+        console.error("Save error:", e);
+        setStatus("error");
       }
     }
-    const t = setTimeout(save, 1000);
+    const t = setTimeout(save, 1200);
     return () => clearTimeout(t);
-  }, [user]);
+  }, []);
 
   return (
     <Screen style={{ alignItems:"center", justifyContent:"center" }}>
       <div style={{ textAlign:"center", zIndex:1, padding:"0 32px" }}>
         <PulsingRing />
-        <div style={{ fontFamily:"'Bebas Neue'", fontSize:32, letterSpacing:2, marginTop:28 }}>BUILDING YOUR PLAN</div>
+        <div style={{ fontFamily:"'Bebas Neue'", fontSize:32, letterSpacing:2, marginTop:28 }}>
+          {status === "ready" ? "PLAN READY" : "BUILDING YOUR PLAN"}
+        </div>
         <p style={{ color:"#777", fontSize:13, marginTop:10, lineHeight:1.7 }}>
-          Analyzing your profile and crafting a personalized workout and nutrition plan...
+          {status === "ready"
+            ? "Your personalized workout and nutrition plan is ready."
+            : "Analyzing your profile and crafting your plan..."}
         </p>
-        <LoadingDots />
+        {status !== "ready" && <LoadingDots />}
+        {status === "error" && <p style={{ color:"#ff5e5e", fontSize:12, marginTop:10 }}>Save failed — check your connection and try again.</p>}
         <button
-          onClick={() => canGo && onDone()}
-          style={{ ...btnStyle("primary"), marginTop:32, width:"100%", opacity: canGo ? 1 : 0.4 }}
+          onClick={status === "ready" ? onDone : undefined}
+          style={{ ...btnStyle("primary"), marginTop:28, width:"100%", opacity: status === "ready" ? 1 : 0.35, cursor: status === "ready" ? "pointer" : "default" }}
         >
-          {canGo ? "View My Plan" : "Saving your profile..."}
+          {status === "ready" ? "View My Plan" : "Saving your profile..."}
         </button>
       </div>
     </Screen>
   );
 }
 
-// ── Step 1: Body Stats ─────────────────────────────────
-function StepProfile({ form, setField }) {
+// ── Step components ────────────────────────────────────
+function StepProfile({ form, setField, toggleArr }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <StepTitle title="Body Stats" sub="Help us understand your starting point" />
-
       <div style={{ display:"flex", gap:12 }}>
         <div style={{ flex:1 }}>
           <Label>Age</Label>
@@ -226,41 +230,30 @@ function StepProfile({ form, setField }) {
           <Label>Gender</Label>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
             {["Male","Female","Other"].map(g => (
-              <button key={g} onClick={() => setField("gender", g)} style={{ padding:"8px 12px", borderRadius:20, fontSize:12, fontWeight:500, background: form.gender===g?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.gender===g?"#00ff80":"#1e1e1e"}`, color: form.gender===g?"#00ff80":"#777", cursor:"pointer", transition:"all 0.2s", fontFamily:"'DM Sans'" }}>{g}</button>
+              <button key={g} onClick={() => setField("gender", g)} style={{ padding:"8px 12px", borderRadius:20, fontSize:12, fontWeight:500, background:form.gender===g?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.gender===g?"#00ff80":"#1e1e1e"}`, color:form.gender===g?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{g}</button>
             ))}
           </div>
         </div>
       </div>
-
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <Label>Weight</Label>
-          <div style={{ display:"flex", background:"#0e0e0e", border:"1px solid #1e1e1e", borderRadius:8, overflow:"hidden" }}>
-            {["kg","lbs"].map(u => (
-              <button key={u} onClick={() => setField("weightUnit", u)} style={{ padding:"4px 14px", fontSize:12, fontWeight:600, background: form.weightUnit===u?"rgba(0,255,128,0.15)":"transparent", border:"none", color: form.weightUnit===u?"#00ff80":"#555", cursor:"pointer", fontFamily:"'DM Sans'" }}>{u}</button>
-            ))}
-          </div>
+          <UnitToggle value={form.weightUnit} options={["kg","lbs"]} onChange={v => setField("weightUnit", v)} />
         </div>
         <RulerPicker value={form.weight} onChange={v => setField("weight", v)} min={form.weightUnit==="kg"?30:66} max={form.weightUnit==="kg"?200:440} unit={form.weightUnit} />
       </div>
-
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <Label>Height</Label>
-          <div style={{ display:"flex", background:"#0e0e0e", border:"1px solid #1e1e1e", borderRadius:8, overflow:"hidden" }}>
-            {["cm","ft"].map(u => (
-              <button key={u} onClick={() => setField("heightUnit", u)} style={{ padding:"4px 14px", fontSize:12, fontWeight:600, background: form.heightUnit===u?"rgba(0,255,128,0.15)":"transparent", border:"none", color: form.heightUnit===u?"#00ff80":"#555", cursor:"pointer", fontFamily:"'DM Sans'" }}>{u}</button>
-            ))}
-          </div>
+          <UnitToggle value={form.heightUnit} options={["cm","ft"]} onChange={v => setField("heightUnit", v)} />
         </div>
         <RulerPicker value={form.height} onChange={v => setField("height", v)} min={form.heightUnit==="cm"?120:4} max={form.heightUnit==="cm"?220:7} unit={form.heightUnit} step={form.heightUnit==="ft"?0.1:1} />
       </div>
-
       <div>
         <Label>Body Fat % <span style={{ color:"#555", fontWeight:400 }}>(optional)</span></Label>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {["<10%","10–15%","15–20%","20–25%","25–30%","30%+","Not sure"].map(v => (
-            <button key={v} onClick={() => setField("bodyFat", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background: form.bodyFat===v?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.bodyFat===v?"#00ff80":"#1e1e1e"}`, color: form.bodyFat===v?"#00ff80":"#777", cursor:"pointer", transition:"all 0.2s", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => setField("bodyFat", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background:form.bodyFat===v?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.bodyFat===v?"#00ff80":"#1e1e1e"}`, color:form.bodyFat===v?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -268,7 +261,6 @@ function StepProfile({ form, setField }) {
   );
 }
 
-// ── Step 2: Health ────────────────────────────────────
 function StepHealth({ form, setField, toggleArr }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -280,16 +272,14 @@ function StepHealth({ form, setField, toggleArr }) {
             { value:"beginner",     label:"Beginner",     desc:"Less than 6 months training" },
             { value:"intermediate", label:"Intermediate", desc:"6 months – 2 years training" },
             { value:"advanced",     label:"Advanced",     desc:"2+ years consistent training" },
-          ].map(o => (
-            <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.fitnessLevel===o.value} onClick={v => setField("fitnessLevel", v)} />
-          ))}
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.fitnessLevel===o.value} onClick={v => setField("fitnessLevel", v)} />)}
         </div>
       </div>
       <div>
         <Label>Injuries / Limitations</Label>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-          {["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"].map(v => (
-            <button key={v} onClick={() => toggleArr("injuries", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background: form.injuries.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.injuries.includes(v)?"#00ff80":"#1e1e1e"}`, color: form.injuries.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
+          {INJURY_OPTIONS.map(v => (
+            <button key={v} onClick={() => toggleArr("injuries", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background:form.injuries.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.injuries.includes(v)?"#00ff80":"#1e1e1e"}`, color:form.injuries.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -301,7 +291,6 @@ function StepHealth({ form, setField, toggleArr }) {
   );
 }
 
-// ── Step 3: Lifestyle ─────────────────────────────────
 function StepLifestyle({ form, setField }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -313,16 +302,14 @@ function StepLifestyle({ form, setField }) {
             { value:"sedentary", label:"Sedentary",      desc:"Desk job, mostly sitting" },
             { value:"light",     label:"Lightly Active", desc:"On feet occasionally" },
             { value:"active",    label:"Active",         desc:"Physical job or always on feet" },
-          ].map(o => (
-            <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.jobType===o.value} onClick={v => setField("jobType", v)} />
-          ))}
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.jobType===o.value} onClick={v => setField("jobType", v)} />)}
         </div>
       </div>
       <div>
         <Label>Avg Sleep</Label>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {["<5h","5–6h","6–7h","7–8h","8h+"].map(v => (
-            <button key={v} onClick={() => setField("sleepHours", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background: form.sleepHours===v?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.sleepHours===v?"#00ff80":"#1e1e1e"}`, color: form.sleepHours===v?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => setField("sleepHours", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background:form.sleepHours===v?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.sleepHours===v?"#00ff80":"#1e1e1e"}`, color:form.sleepHours===v?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -330,7 +317,7 @@ function StepLifestyle({ form, setField }) {
         <Label>Stress Level</Label>
         <div style={{ display:"flex", gap:8 }}>
           {["Low","Medium","High","Very High"].map(v => (
-            <button key={v} onClick={() => setField("stressLevel", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background: form.stressLevel===v?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.stressLevel===v?"#00ff80":"#1e1e1e"}`, color: form.stressLevel===v?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => setField("stressLevel", v)} style={{ padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500, background:form.stressLevel===v?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.stressLevel===v?"#00ff80":"#1e1e1e"}`, color:form.stressLevel===v?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -338,7 +325,7 @@ function StepLifestyle({ form, setField }) {
         <Label>Training Days per Week</Label>
         <div style={{ display:"flex", gap:8 }}>
           {["2","3","4","5","6"].map(v => (
-            <button key={v} onClick={() => setField("trainingDays", v)} style={{ width:48, height:48, borderRadius:10, background: form.trainingDays===v?"#00ff80":"#0e0e0e", border:`1px solid ${form.trainingDays===v?"#00ff80":"#1e1e1e"}`, color: form.trainingDays===v?"#000":"#777", fontWeight:700, fontSize:16, cursor:"pointer", transition:"all 0.2s", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => setField("trainingDays", v)} style={{ width:48, height:48, borderRadius:10, background:form.trainingDays===v?"#00ff80":"#0e0e0e", border:`1px solid ${form.trainingDays===v?"#00ff80":"#1e1e1e"}`, color:form.trainingDays===v?"#000":"#777", fontWeight:700, fontSize:16, cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -346,7 +333,6 @@ function StepLifestyle({ form, setField }) {
   );
 }
 
-// ── Step 4: Goals ─────────────────────────────────────
 function StepGoals({ form, setField, toggleArr }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -358,9 +344,7 @@ function StepGoals({ form, setField, toggleArr }) {
             { value:"fat_loss",    label:"Fat Loss",        desc:"Burn fat, get leaner" },
             { value:"muscle_gain", label:"Muscle Gain",     desc:"Build size and strength" },
             { value:"maintain",    label:"Maintain & Tone", desc:"Stay fit, improve definition" },
-          ].map(o => (
-            <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v => setField("primaryGoal", v)} />
-          ))}
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v => setField("primaryGoal", v)} />)}
         </div>
       </div>
       <div>
@@ -371,7 +355,7 @@ function StepGoals({ form, setField, toggleArr }) {
         <Label>Workout Location</Label>
         <div style={{ display:"flex", gap:8 }}>
           {["Gym","Home","Both"].map(v => (
-            <button key={v} onClick={() => toggleArr("workoutLocation", v)} style={{ padding:"6px 18px", borderRadius:20, fontSize:12, fontWeight:500, background: form.workoutLocation.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.workoutLocation.includes(v)?"#00ff80":"#1e1e1e"}`, color: form.workoutLocation.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => toggleArr("workoutLocation", v)} style={{ padding:"6px 18px", borderRadius:20, fontSize:12, fontWeight:500, background:form.workoutLocation.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.workoutLocation.includes(v)?"#00ff80":"#1e1e1e"}`, color:form.workoutLocation.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -379,7 +363,7 @@ function StepGoals({ form, setField, toggleArr }) {
         <Label>Equipment Available</Label>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           {EQUIPMENT_OPTIONS.map(v => (
-            <button key={v} onClick={() => toggleArr("equipment", v)} style={{ padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:500, background: form.equipment.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.equipment.includes(v)?"#00ff80":"#1e1e1e"}`, color: form.equipment.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => toggleArr("equipment", v)} style={{ padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:500, background:form.equipment.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.equipment.includes(v)?"#00ff80":"#1e1e1e"}`, color:form.equipment.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -387,7 +371,7 @@ function StepGoals({ form, setField, toggleArr }) {
         <Label>Dietary Preferences</Label>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           {DIETARY_OPTIONS.map(v => (
-            <button key={v} onClick={() => toggleArr("dietaryPrefs", v)} style={{ padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:500, background: form.dietaryPrefs.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.dietaryPrefs.includes(v)?"#00ff80":"#1e1e1e"}`, color: form.dietaryPrefs.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
+            <button key={v} onClick={() => toggleArr("dietaryPrefs", v)} style={{ padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:500, background:form.dietaryPrefs.includes(v)?"rgba(0,255,128,0.12)":"#0e0e0e", border:`1px solid ${form.dietaryPrefs.includes(v)?"#00ff80":"#1e1e1e"}`, color:form.dietaryPrefs.includes(v)?"#00ff80":"#777", cursor:"pointer", fontFamily:"'DM Sans'" }}>{v}</button>
           ))}
         </div>
       </div>
@@ -395,85 +379,7 @@ function StepGoals({ form, setField, toggleArr }) {
   );
 }
 
-// ── Ruler Picker ───────────────────────────────────────
-function RulerPicker({ value, onChange, min, max, unit, step = 1 }) {
-  const trackRef  = useRef(null);
-  const startX    = useRef(null);
-  const startVal  = useRef(null);
-  const pixelsPerUnit = 4;
-
-  const clamp = v => Math.min(max, Math.max(min, Math.round(v / step) * step));
-
-  const onPointerDown = (e) => {
-    startX.current   = e.clientX ?? e.touches?.[0]?.clientX;
-    startVal.current  = value;
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup",   onPointerUp);
-    window.addEventListener("touchmove",   onTouchMove, { passive:false });
-    window.addEventListener("touchend",    onPointerUp);
-  };
-  const onPointerMove = (e) => {
-    const x    = e.clientX;
-    const delta = (startX.current - x) / pixelsPerUnit * step;
-    onChange(clamp(startVal.current + delta));
-  };
-  const onTouchMove = (e) => {
-    e.preventDefault();
-    const x    = e.touches[0].clientX;
-    const delta = (startX.current - x) / pixelsPerUnit * step;
-    onChange(clamp(startVal.current + delta));
-  };
-  const onPointerUp = () => {
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("pointerup",   onPointerUp);
-    window.removeEventListener("touchmove",   onTouchMove);
-    window.removeEventListener("touchend",    onPointerUp);
-  };
-
-  const displayVal = step < 1 ? value.toFixed(1) : Math.round(value);
-  const ticks = [];
-  const range = max - min;
-  for (let i = 0; i <= range; i++) {
-    const v = min + i;
-    const isMajor = v % 10 === 0;
-    const isMid   = v % 5  === 0;
-    ticks.push({ v, isMajor, isMid });
-  }
-
-  return (
-    <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:14, overflow:"hidden", userSelect:"none" }}>
-      {/* Value display */}
-      <div style={{ textAlign:"center", padding:"16px 0 8px" }}>
-        <span style={{ fontFamily:"'Bebas Neue'", fontSize:52, color:"#f0f0f0", letterSpacing:2 }}>{displayVal}</span>
-        <span style={{ fontSize:14, color:"#777", marginLeft:6, fontWeight:500 }}>{unit}</span>
-      </div>
-
-      {/* Ruler */}
-      <div ref={trackRef} onPointerDown={onPointerDown} onTouchStart={onPointerDown}
-        style={{ position:"relative", height:60, overflow:"hidden", cursor:"ew-resize", touchAction:"none" }}>
-
-        {/* Center line */}
-        <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:2, background:"#00ff80", zIndex:2, transform:"translateX(-50%)" }}/>
-        <div style={{ position:"absolute", left:"50%", top:0, width:0, height:0, zIndex:3, transform:"translateX(-50%)", borderLeft:"6px solid transparent", borderRight:"6px solid transparent", borderTop:"8px solid #00ff80" }}/>
-
-        {/* Tick marks */}
-        <div style={{ position:"absolute", top:0, bottom:0, display:"flex", alignItems:"flex-end", paddingBottom:8,
-          left:`calc(50% - ${(value - min) * pixelsPerUnit / step}px)`,
-          transition:"left 0s",
-        }}>
-          {ticks.map(({ v, isMajor, isMid }) => (
-            <div key={v} style={{ display:"flex", flexDirection:"column", alignItems:"center", width: pixelsPerUnit / step }}>
-              <div style={{ width:1, height: isMajor?28:isMid?18:10, background: isMajor?"#555":isMid?"#333":"#222", flexShrink:0 }}/>
-              {isMajor && <div style={{ fontSize:9, color:"#555", marginTop:3, position:"absolute", bottom:2, transform:"translateX(-50%)", whiteSpace:"nowrap" }}>{v}</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ textAlign:"center", paddingBottom:10, fontSize:10, color:"#444", letterSpacing:2 }}>DRAG TO ADJUST</div>
-    </div>
-  );
-}
-
+// ── Shared components ──────────────────────────────────
 function StepTitle({ title, sub }) {
   return (
     <div style={{ marginBottom:4 }}>
@@ -483,9 +389,83 @@ function StepTitle({ title, sub }) {
   );
 }
 
+function Label({ children }) {
+  return <div style={{ fontSize:11, color:"#888", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>{children}</div>;
+}
+
+function UnitToggle({ value, options, onChange }) {
+  return (
+    <div style={{ display:"flex", background:"#0e0e0e", border:"1px solid #1e1e1e", borderRadius:8, overflow:"hidden", flexShrink:0 }}>
+      {options.map(o => (
+        <button key={o} onClick={() => onChange(o)} style={{ padding:"4px 14px", fontSize:12, fontWeight:600, background:value===o?"rgba(0,255,128,0.15)":"transparent", border:"none", color:value===o?"#00ff80":"#555", cursor:"pointer", fontFamily:"'DM Sans'" }}>{o}</button>
+      ))}
+    </div>
+  );
+}
+
+function RulerPicker({ value, onChange, min, max, unit, step = 1 }) {
+  const startX   = useRef(null);
+  const startVal = useRef(null);
+  const ppu      = 4;
+  const clamp    = v => Math.min(max, Math.max(min, Math.round(v / step) * step));
+
+  const onDown = (e) => {
+    startX.current   = e.clientX ?? e.touches?.[0]?.clientX;
+    startVal.current = value;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup",   onUp);
+    window.addEventListener("touchmove",   onTouch, { passive:false });
+    window.addEventListener("touchend",    onUp);
+  };
+  const onMove  = (e) => onChange(clamp(startVal.current + (startX.current - e.clientX) / ppu * step));
+  const onTouch = (e) => { e.preventDefault(); onChange(clamp(startVal.current + (startX.current - e.touches[0].clientX) / ppu * step)); };
+  const onUp    = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); window.removeEventListener("touchmove", onTouch); window.removeEventListener("touchend", onUp); };
+
+  const displayVal = step < 1 ? value.toFixed(1) : Math.round(value);
+  const ticks = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => min + i * step);
+
+  return (
+    <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:14, overflow:"hidden", userSelect:"none" }}>
+      <div style={{ textAlign:"center", padding:"14px 0 6px" }}>
+        <span style={{ fontFamily:"'Bebas Neue'", fontSize:48, color:"#f0f0f0", letterSpacing:2 }}>{displayVal}</span>
+        <span style={{ fontSize:13, color:"#777", marginLeft:6 }}>{unit}</span>
+      </div>
+      <div onPointerDown={onDown} onTouchStart={onDown} style={{ position:"relative", height:56, overflow:"hidden", cursor:"ew-resize", touchAction:"none" }}>
+        <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:2, background:"#00ff80", zIndex:2, transform:"translateX(-50%)" }}/>
+        <div style={{ position:"absolute", top:0, bottom:0, display:"flex", alignItems:"flex-end", paddingBottom:6, left:`calc(50% - ${(value - min) / step * ppu}px)` }}>
+          {ticks.map((v, i) => {
+            const isMajor = i % Math.round(10/step) === 0;
+            const isMid   = i % Math.round(5/step) === 0;
+            return (
+              <div key={v} style={{ display:"flex", flexDirection:"column", alignItems:"center", width:ppu, flexShrink:0 }}>
+                <div style={{ width:1, height:isMajor?24:isMid?16:8, background:isMajor?"#555":isMid?"#333":"#222" }}/>
+                {isMajor && <div style={{ fontSize:8, color:"#444", marginTop:2, position:"absolute", bottom:0, transform:"translateX(-50%)", whiteSpace:"nowrap" }}>{Math.round(v)}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ textAlign:"center", padding:"6px 0 10px", fontSize:9, color:"#444", letterSpacing:2 }}>DRAG TO ADJUST</div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{ background:"#080808", height:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{ position:"relative", width:60, height:60 }}>
+        <div style={{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#00ff80", animation:"spin 1s linear infinite" }}/>
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:14, color:"#00ff80", letterSpacing:1 }}>AC</div>
+      </div>
+    </div>
+  );
+}
+
 function PulsingRing() {
   return (
     <div style={{ position:"relative", width:90, height:90, margin:"0 auto" }}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}} @keyframes dots{0%,80%,100%{opacity:0}40%{opacity:1}}`}</style>
       <div style={{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid rgba(0,255,128,0.12)", animation:"pulse 2s ease-in-out infinite" }}/>
       <div style={{ position:"absolute", inset:8, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#00ff80", animation:"spin 1.2s linear infinite" }}/>
       <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Bebas Neue'", fontSize:22, color:"#00ff80" }}>AC</div>
