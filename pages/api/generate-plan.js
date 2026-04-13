@@ -1,91 +1,100 @@
-// Increase timeout — works on Pro plan; on Hobby we'll optimize the prompt to be fast
 export const config = { maxDuration: 60 };
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
-function buildPrompt(profile) {
-  const {
-    age, gender, weight, weightUnit, height, heightUnit,
-    fitnessLevel, injuries, jobType, sleepHours, stressLevel,
-    trainingDays, primaryGoal, workoutLocation, equipment, dietaryPrefs,
-  } = profile;
+function buildPrompt(p) {
+  const days     = parseInt(p.trainingDays) || 4;
+  const injuries = (p.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
+  const equip    = (p.equipment || []).slice(0, 5).join(", ") || "bodyweight";
+  const diet     = (p.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "none";
+  const loc      = (p.workoutLocation || []).join("/") || "gym";
+  const goal     = { fat_loss: "fat loss", muscle_gain: "muscle gain", maintain: "maintain" }[p.primaryGoal] || "maintain";
+  const cal      = p.primaryGoal === "fat_loss" ? "deficit 300kcal" : p.primaryGoal === "muscle_gain" ? "surplus 300kcal" : "maintenance";
 
-  const days = parseInt(trainingDays) || 4;
-  const injuryNote = (injuries?.filter(x => x && x !== "None") || []).join(", ") || "none";
-  const equipNote  = equipment?.length ? equipment.slice(0, 4).join(", ") : "bodyweight";
-  const dietNote   = dietaryPrefs?.filter(x => x && x !== "No Restrictions").join(", ") || "none";
-  const goalLabel  = { fat_loss:"fat loss (caloric deficit)", muscle_gain:"muscle gain (caloric surplus)", maintain:"maintenance" }[primaryGoal] || "maintenance";
-  const locationStr = workoutLocation?.join("/") || "gym";
+  return `You are a fitness coach. Return ONLY a JSON object (no markdown, no explanation).
 
-  // Compact prompt — fast response, still personalized
-  return `Create a personalized fitness plan. Return ONLY valid JSON, no markdown.
+User: ${p.age}yr ${p.gender}, ${p.weight}${p.weightUnit}, ${p.height}${p.heightUnit}, ${p.fitnessLevel || "beginner"}, goal: ${goal}, ${days} training days/week, location: ${loc}, equipment: ${equip}, injuries: ${injuries}, diet: ${diet}, sleep: ${p.sleepHours || "7h"}, stress: ${p.stressLevel || "medium"}, job: ${p.jobType || "sedentary"}.
 
-Profile: ${age}yo ${gender}, ${weight}${weightUnit}, ${height}${heightUnit}, ${fitnessLevel} level, goal: ${goalLabel}, ${days} training days/week, ${locationStr} with ${equipNote}, injuries: ${injuryNote}, diet: ${dietNote}, sleep: ${sleepHours || "7h"}, stress: ${stressLevel || "medium"}, job: ${jobType || "sedentary"}
+Generate 7 days (${days} workout + ${7 - days} rest). Only use ${equip}. Avoid exercises stressing: ${injuries}. Calories: ${cal}. Respect diet: ${diet}.
 
-Return this JSON (7 days total, exactly ${days} workout days, rest on others):
-{"weekPlan":[{"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push Day","muscleGroups":"Chest, Shoulders, Triceps","estimatedDuration":"50 min","exercises":[{"name":"Bench Press","sets":4,"reps":"8-10","restSeconds":90,"notes":""}]},{"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}],"nutrition":{"dailyCalories":2200,"macros":{"protein":165,"carbs":220,"fat":73},"meals":{"breakfast":{"name":"Protein Oats","calories":480,"protein":35,"carbs":55,"fat":10,"ingredients":["80g oats","1 scoop whey","1 banana","200ml milk"],"instructions":"Cook oats, stir in protein, top with banana."},"lunch":{"name":"Chicken Rice Bowl","calories":650,"protein":50,"carbs":70,"fat":12,"ingredients":["180g chicken","150g rice","broccoli","olive oil"],"instructions":"Grill chicken, steam veg, serve over rice."},"dinner":{"name":"Salmon & Sweet Potato","calories":680,"protein":45,"carbs":60,"fat":22,"ingredients":["180g salmon","200g sweet potato","salad","lemon"],"instructions":"Bake salmon 200C 18min, roast potato 25min."},"snacks":[{"name":"Greek Yogurt","calories":200,"protein":17,"carbs":20,"fat":3,"ingredients":["200g Greek yogurt","berries","honey"],"instructions":"Mix and serve."}]},"nutritionNotes":"Personalized note here."},"coachNote":"One specific note about this person's plan."}
-
-Rules: only use ${equipNote} exercises, avoid strain on ${injuryNote}, set calories for ${goalLabel}, personalize meals for diet: ${dietNote}`;
+JSON structure:
+{
+  "weekPlan": [
+    {"dayIndex":0,"dayName":"Monday","type":"workout","sessionLabel":"Push","muscleGroups":"Chest, Shoulders","estimatedDuration":"45 min","exercises":[{"name":"Push-up","sets":3,"reps":"12","restSeconds":60,"notes":""}]},
+    {"dayIndex":1,"dayName":"Tuesday","type":"rest","sessionLabel":"Rest","muscleGroups":"","estimatedDuration":"","exercises":[]}
+  ],
+  "nutrition": {
+    "dailyCalories": 2200,
+    "macros": {"protein":160,"carbs":220,"fat":70},
+    "meals": {
+      "breakfast": {"name":"Protein Oats","calories":450,"protein":32,"carbs":50,"fat":10,"ingredients":["80g oats","whey protein","banana","milk"],"instructions":"Cook oats, mix protein in, add banana."},
+      "lunch": {"name":"Chicken & Rice","calories":600,"protein":48,"carbs":65,"fat":12,"ingredients":["chicken breast","rice","vegetables"],"instructions":"Grill chicken, serve with rice and veg."},
+      "dinner": {"name":"Salmon & Potatoes","calories":650,"protein":42,"carbs":58,"fat":20,"ingredients":["salmon","sweet potato","salad"],"instructions":"Bake salmon 18min, roast potato 25min."},
+      "snacks": [{"name":"Greek Yogurt","calories":180,"protein":15,"carbs":18,"fat":3,"ingredients":["Greek yogurt","berries"],"instructions":"Serve cold."}]
+    },
+    "nutritionNotes": "Adjust portions to hunger."
+  },
+  "coachNote": "Brief note for this specific user."
+}`;
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  if (!GEMINI_KEY) {
-    return res.status(500).json({ error: "GEMINI_API_KEY not set in Vercel environment variables." });
+  const key = GEMINI_KEY;
+  console.log("Key present:", !!key, "Key prefix:", key ? key.slice(0, 8) : "MISSING");
+
+  if (!key) {
+    return res.status(500).json({
+      error: "GEMINI_API_KEY missing from environment. Please redeploy after adding it in Vercel settings."
+    });
   }
 
   const profile = req.body;
-  // Use fastest model first
-  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"];
+  const prompt  = buildPrompt(profile);
 
-  for (const model of models) {
+  // Try models in order of speed
+  for (const model of ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash"]) {
+    console.log("Trying:", model);
     try {
-      console.log(`Trying model: ${model}`);
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: buildPrompt(profile) }] }],
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 3000,
+              temperature: 0.8,
+              maxOutputTokens: 2500,
               responseMimeType: "application/json",
             },
           }),
         }
       );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error(`${model} API error ${response.status}:`, JSON.stringify(data).slice(0, 300));
+      const data = await r.json();
+      if (!r.ok) {
+        console.error(model, "HTTP", r.status, JSON.stringify(data).slice(0, 400));
         continue;
       }
 
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) {
-        console.error(`${model} empty response. Finish reason:`, data?.candidates?.[0]?.finishReason);
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+
+      if (!clean) {
+        console.error(model, "empty text, finishReason:", data?.candidates?.[0]?.finishReason);
         continue;
       }
 
-      const cleaned = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+      const plan = JSON.parse(clean);
+      console.log("Success:", model);
+      return res.status(200).json(plan);
 
-      try {
-        const plan = JSON.parse(cleaned);
-        console.log(`Success with ${model}`);
-        return res.status(200).json(plan);
-      } catch (e) {
-        console.error(`${model} JSON parse failed:`, e.message, "| First 200 chars:", cleaned.slice(0, 200));
-        continue;
-      }
     } catch (e) {
-      console.error(`${model} fetch error:`, e.message);
-      continue;
+      console.error(model, "error:", e.message);
     }
   }
 
-  return res.status(500).json({ error: "Plan generation failed. Your Gemini API key may be invalid or rate-limited. Check Vercel logs for details." });
+  return res.status(500).json({ error: "All models failed. Check Vercel runtime logs." });
 }
