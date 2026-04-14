@@ -40,8 +40,10 @@ function flattenBlocks(blocks) {
   return result;
 }
 
-function getLoggable(flat) { return flat.filter(i => !i.isHeader && i.sets && i.reps); }
+function getLoggable(flat) { return flat.filter(i => !i.isHeader); } // all blocks included
 function buildSets(count)  { return Array.from({length:parseInt(count)||3}, () => ({weight:"",reps:"",done:false})); }
+// Simple exercises (warmup/cooldown) just need one "done" flag
+function isSimpleEx(ex) { return !ex.sets && !ex.reps; }
 
 export default function Workout() {
   const router = useRouter();
@@ -85,10 +87,13 @@ export default function Workout() {
   const loggable  = getLoggable(flat);
   const curEx     = loggable[exIdx];
   const sets      = allSets[exIdx] || [];
-  const allDone   = sets.length > 0 && sets.every(s => s.done);
+  const isSimple  = isSimpleEx(curEx || {});
+  const allDone   = isSimple
+    ? (sets[0]?.done === true)
+    : (sets.length > 0 && sets.every(s => s.done));
   const isLast    = exIdx === loggable.length - 1;
 
-  useEffect(() => { if(loggable.length>0&&phase==="active") setAllSets(loggable.map(e=>buildSets(e.sets))); }, [loggable.length, phase]);
+  useEffect(() => { if(loggable.length>0&&phase==="active") setAllSets(loggable.map(e=>isSimpleEx(e)?[{done:false}]:buildSets(e.sets))); }, [loggable.length, phase]);
   useEffect(() => { if(phase!=="active") return; elapsedRef.current=setInterval(()=>setElapsed(e=>e+1),1000); return()=>clearInterval(elapsedRef.current); }, [phase]);
   useEffect(() => { if(phase==="finished"||phase==="feedback") clearInterval(elapsedRef.current); }, [phase]);
   useEffect(() => {
@@ -111,7 +116,7 @@ export default function Workout() {
 
   const startWorkout = () => {
     setExIdx(0); setElapsed(0);
-    setAllSets(loggable.map(e=>buildSets(e.sets)));
+    setAllSets(loggable.map(e=>isSimpleEx(e)?[{done:false}]:buildSets(e.sets)));
     setPhase("active");
   };
 
@@ -183,9 +188,10 @@ export default function Workout() {
       <style>{`input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;} input:focus{outline:none;}`}</style>
       <ActiveScreen
         ex={curEx} exIdx={exIdx} loggable={loggable} sets={sets}
-        allDone={allDone} isLast={isLast} elapsed={elapsed}
+        allDone={allDone} isLast={isLast} isSimple={isSimple} elapsed={elapsed}
         timer={timer} timerPct={timerPct} fmtTime={fmtTime}
         updateSet={updateSet} completeSet={completeSet}
+        markSimpleDone={() => setAllSets(p=>{ const n=p.map(s=>[...s]); n[exIdx][0]={done:true}; return n; })}
         adjustTimer={adjustTimer} skipTimer={skipTimer}
         onBack={() => { setExIdx(i=>i-1); setTimer(null); }}
         onNext={() => {
@@ -307,7 +313,7 @@ function WorkoutView({ day, flat, loggable, isToday, onStart }) {
 }
 
 // ── Active Screen ──────────────────────────────────────
-function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, elapsed, timer, timerPct, fmtTime, updateSet, completeSet, adjustTimer, skipTimer, onBack, onNext, onExit }) {
+function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, elapsed, timer, timerPct, fmtTime, updateSet, completeSet, markSimpleDone, adjustTimer, skipTimer, onBack, onNext, onExit }) {
   const bm = BLOCK_META[ex.key]||{label:"Exercise",color:C.accent};
   return (
     <>
@@ -327,34 +333,72 @@ function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, elapsed, tim
       <div style={{padding:"0 20px 10px",position:"relative",zIndex:1}}>
         <div style={{fontSize:10,color:bm.color,letterSpacing:2.5,fontWeight:700,marginBottom:4}}>{bm.label.toUpperCase()}</div>
         <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5,lineHeight:1,marginBottom:4}}>{ex.name}</div>
-        <div style={{fontSize:13,color:C.muted,marginBottom:ex.notes?4:0}}>Target: {ex.reps} reps · {ex.restSeconds}s rest</div>
-        {ex.notes&&<div style={{fontSize:12,color:C.dim,fontStyle:"italic"}}>{ex.notes}</div>}
+        {isSimple ? (
+          <div style={{fontSize:13,color:C.muted,marginBottom:4}}>{ex.details || ex.duration || ""}</div>
+        ) : (
+          <>
+            <div style={{fontSize:13,color:C.muted,marginBottom:ex.notes?4:0}}>Target: {ex.reps} reps · {ex.restSeconds}s rest</div>
+            {ex.notes&&<div style={{fontSize:12,color:C.dim,fontStyle:"italic"}}>{ex.notes}</div>}
+          </>
+        )}
       </div>
-      <div style={{display:"flex",padding:"0 20px",marginBottom:8,position:"relative",zIndex:1}}>
-        <div style={{width:28,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600}}>SET</div>
-        <div style={{flex:1,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600,textAlign:"center"}}>KG</div>
-        <div style={{flex:1,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600,textAlign:"center"}}>REPS</div>
-        <div style={{width:44}}/>
-      </div>
-      <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:8,flex:1,position:"relative",zIndex:1}}>
-        {sets.map((s,si) => {
-          const isActive=!s.done&&sets.slice(0,si).every(x=>x.done), canLog=s.weight!==""&&s.reps!=="";
-          return (
-            <div key={si} style={{display:"flex",alignItems:"center",gap:8,padding:"10px",borderRadius:14,background:s.done?C.accentDim:isActive?C.bgCard:C.bgDeep,border:`1.5px solid ${s.done?C.accent:isActive?C.borderMid:C.border}`,boxSizing:"border-box",transition:"all 0.2s"}}>
-              <div style={{width:22,height:22,borderRadius:7,flexShrink:0,background:s.done?C.accent:C.bgDeep,border:`1.5px solid ${s.done?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:s.done?"#0a0a0a":C.dim}}>{si+1}</div>
-              <input type="number" placeholder="—" value={s.weight} disabled={s.done||!isActive} onChange={e=>updateSet(si,"weight",e.target.value)} style={{flex:1,minWidth:0,width:0,background:"transparent",border:"none",padding:"4px 0",color:s.done?C.accent:isActive?C.white:C.dim,fontSize:22,fontFamily:F,fontWeight:800,textAlign:"center",outline:"none"}}/>
-              <div style={{width:1,height:18,background:C.border,flexShrink:0}}/>
-              <input type="number" placeholder="—" value={s.reps} disabled={s.done||!isActive} onChange={e=>updateSet(si,"reps",e.target.value)} style={{flex:1,minWidth:0,width:0,background:"transparent",border:"none",padding:"4px 0",color:s.done?C.accent:isActive?C.white:C.dim,fontSize:22,fontFamily:F,fontWeight:800,textAlign:"center",outline:"none"}}/>
-              <button onClick={()=>!s.done&&isActive&&canLog&&completeSet(si)} style={{width:38,height:38,minWidth:38,borderRadius:10,flexShrink:0,background:s.done?C.accent:isActive&&canLog?C.accentDim:C.bgDeep,border:`1.5px solid ${s.done?C.accent:isActive&&canLog?C.accentBorder:C.border}`,color:s.done?"#0a0a0a":isActive&&canLog?C.accent:C.dim,fontSize:16,cursor:isActive&&canLog&&!s.done?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800}}>{s.done?"✓":"○"}</button>
+
+      {/* ── Simple exercise (warmup/cooldown) — just mark done ── */}
+      {isSimple ? (
+        <div style={{padding:"0 16px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center",gap:16,position:"relative",zIndex:1}}>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",textAlign:"center"}}>
+            <div style={{fontSize:12,color:C.muted,lineHeight:1.7,marginBottom:sets[0]?.done?16:0}}>
+              {ex.details || ex.duration || "Complete this exercise, then continue."}
             </div>
-          );
-        })}
-      </div>
+            {sets[0]?.done && (
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <div style={{width:20,height:20,borderRadius:"50%",background:C.accent,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#0a0a0a"}}>✓</div>
+                <span style={{fontSize:14,fontWeight:700,color:C.accent}}>Completed</span>
+              </div>
+            )}
+          </div>
+          {!sets[0]?.done && (
+            <button onClick={markSimpleDone} style={{
+              width:"100%",padding:"16px",background:C.accentDim,
+              border:`1.5px solid ${C.accentBorder}`,borderRadius:14,
+              fontFamily:F,fontSize:15,fontWeight:800,color:C.accent,cursor:"pointer",
+            }}>
+              MARK AS DONE ✓
+            </button>
+          )}
+        </div>
+      ) : (
+        /* ── Weighted exercise — full set logger ── */
+        <>
+          <div style={{display:"flex",padding:"0 20px",marginBottom:8,position:"relative",zIndex:1}}>
+            <div style={{width:28,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600}}>SET</div>
+            <div style={{flex:1,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600,textAlign:"center"}}>KG</div>
+            <div style={{flex:1,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600,textAlign:"center"}}>REPS</div>
+            <div style={{width:44}}/>
+          </div>
+          <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:8,flex:1,position:"relative",zIndex:1}}>
+            {sets.map((s,si) => {
+              const isActive=!s.done&&sets.slice(0,si).every(x=>x.done), canLog=s.weight!==""&&s.reps!=="";
+              return (
+                <div key={si} style={{display:"flex",alignItems:"center",gap:8,padding:"10px",borderRadius:14,background:s.done?C.accentDim:isActive?C.bgCard:C.bgDeep,border:`1.5px solid ${s.done?C.accent:isActive?C.borderMid:C.border}`,boxSizing:"border-box",transition:"all 0.2s"}}>
+                  <div style={{width:22,height:22,borderRadius:7,flexShrink:0,background:s.done?C.accent:C.bgDeep,border:`1.5px solid ${s.done?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:s.done?"#0a0a0a":C.dim}}>{si+1}</div>
+                  <input type="number" placeholder="—" value={s.weight} disabled={s.done||!isActive} onChange={e=>updateSet(si,"weight",e.target.value)} style={{flex:1,minWidth:0,width:0,background:"transparent",border:"none",padding:"4px 0",color:s.done?C.accent:isActive?C.white:C.dim,fontSize:22,fontFamily:F,fontWeight:800,textAlign:"center",outline:"none"}}/>
+                  <div style={{width:1,height:18,background:C.border,flexShrink:0}}/>
+                  <input type="number" placeholder="—" value={s.reps} disabled={s.done||!isActive} onChange={e=>updateSet(si,"reps",e.target.value)} style={{flex:1,minWidth:0,width:0,background:"transparent",border:"none",padding:"4px 0",color:s.done?C.accent:isActive?C.white:C.dim,fontSize:22,fontFamily:F,fontWeight:800,textAlign:"center",outline:"none"}}/>
+                  <button onClick={()=>!s.done&&isActive&&canLog&&completeSet(si)} style={{width:38,height:38,minWidth:38,borderRadius:10,flexShrink:0,background:s.done?C.accent:isActive&&canLog?C.accentDim:C.bgDeep,border:`1.5px solid ${s.done?C.accent:isActive&&canLog?C.accentBorder:C.border}`,color:s.done?"#0a0a0a":isActive&&canLog?C.accent:C.dim,fontSize:16,cursor:isActive&&canLog&&!s.done?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800}}>{s.done?"✓":"○"}</button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
       <div style={{padding:"12px 20px 30px",position:"relative",zIndex:1}}>
         <div style={{display:"flex",gap:10}}>
           {exIdx>0&&<button onClick={onBack} style={{padding:"14px 18px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>Back</button>}
           <button onClick={allDone?onNext:undefined} style={{flex:1,padding:"15px",background:allDone?C.accent:C.bgCard,border:`1.5px solid ${allDone?C.accent:C.border}`,borderRadius:14,color:allDone?"#0a0a0a":C.dim,fontSize:14,fontWeight:800,cursor:allDone?"pointer":"default",fontFamily:F,transition:"all 0.2s"}}>
-            {allDone?(isLast?"FINISH WORKOUT":"NEXT EXERCISE"):`Complete all ${ex.sets} sets`}
+            {allDone
+              ? (isLast ? "FINISH WORKOUT" : "NEXT EXERCISE")
+              : isSimple ? "Mark as done to continue" : `Complete all ${ex.sets} sets`}
           </button>
         </div>
       </div>
