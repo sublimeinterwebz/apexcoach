@@ -314,9 +314,10 @@ function WorkoutView({ day, flat, loggable, isToday, onStart }) {
 
 // ── Active Screen ──────────────────────────────────────
 function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, elapsed, timer, timerPct, fmtTime, updateSet, completeSet, markSimpleDone, adjustTimer, skipTimer, onBack, onNext, onExit }) {
-  const bm = BLOCK_META[ex.key]||{label:"Exercise",color:C.accent};
+  const bm = BLOCK_META[ex.key] || { label:"Exercise", color:C.accent };
   return (
     <>
+      {/* Header */}
       <div style={{padding:"44px 20px 0",position:"relative",zIndex:1}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <button onClick={onExit} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:"6px 14px",color:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>EXIT</button>
@@ -327,48 +328,47 @@ function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, el
           <div style={{background:C.accentDim,border:`1px solid ${C.accentBorder}`,borderRadius:10,padding:"6px 14px",fontSize:12,fontWeight:700,color:C.accent,fontFamily:F}}>{exIdx+1}/{loggable.length}</div>
         </div>
         <div style={{display:"flex",gap:3,marginBottom:20}}>
-          {loggable.map((_,i)=><div key={i} style={{flex:1,height:3,borderRadius:3,background:i<exIdx?"#5a8a00":i===exIdx?C.accent:C.border,transition:"background 0.3s"}}/>)}
+          {loggable.map((item,i) => {
+            const c2 = (BLOCK_META[item.key]||{color:C.accent}).color;
+            return <div key={i} style={{flex:1,height:3,borderRadius:3,background:i<exIdx?"#5a8a00":i===exIdx?c2:C.border,transition:"background 0.3s"}}/>;
+          })}
         </div>
       </div>
-      <div style={{padding:"0 20px 10px",position:"relative",zIndex:1}}>
+
+      {/* Exercise info */}
+      <div style={{padding:"0 20px 16px",position:"relative",zIndex:1}}>
         <div style={{fontSize:10,color:bm.color,letterSpacing:2.5,fontWeight:700,marginBottom:4}}>{bm.label.toUpperCase()}</div>
-        <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5,lineHeight:1,marginBottom:4}}>{ex.name}</div>
+        <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5,lineHeight:1.1,marginBottom:6}}>{ex.name}</div>
         {isSimple ? (
-          <div style={{fontSize:13,color:C.muted,marginBottom:4}}>{ex.details || ex.duration || ""}</div>
+          <div style={{fontSize:14,color:C.muted}}>{ex.details || ex.duration || ""}</div>
         ) : (
           <>
             <div style={{fontSize:13,color:C.muted,marginBottom:ex.notes?4:0}}>Target: {ex.reps} reps · {ex.restSeconds}s rest</div>
-            {ex.notes&&<div style={{fontSize:12,color:C.dim,fontStyle:"italic"}}>{ex.notes}</div>}
+            {ex.notes && <div style={{fontSize:12,color:C.dim,fontStyle:"italic"}}>{ex.notes}</div>}
           </>
         )}
       </div>
 
-      {/* ── Simple exercise (warmup/cooldown) — just mark done ── */}
+      {/* SIMPLE: big tap-to-complete circle */}
       {isSimple ? (
-        <div style={{padding:"0 16px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center",gap:16,position:"relative",zIndex:1}}>
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",textAlign:"center"}}>
-            <div style={{fontSize:12,color:C.muted,lineHeight:1.7,marginBottom:sets[0]?.done?16:0}}>
-              {ex.details || ex.duration || "Complete this exercise, then continue."}
-            </div>
-            {sets[0]?.done && (
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <div style={{width:20,height:20,borderRadius:"50%",background:C.accent,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#0a0a0a"}}>✓</div>
-                <span style={{fontSize:14,fontWeight:700,color:C.accent}}>Completed</span>
-              </div>
-            )}
-          </div>
-          {!sets[0]?.done && (
-            <button onClick={markSimpleDone} style={{
-              width:"100%",padding:"16px",background:C.accentDim,
-              border:`1.5px solid ${C.accentBorder}`,borderRadius:14,
-              fontFamily:F,fontSize:15,fontWeight:800,color:C.accent,cursor:"pointer",
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"0 24px",position:"relative",zIndex:1}}>
+          <div
+            onClick={() => !allDone && markSimpleDone()}
+            style={{
+              width:140,height:140,borderRadius:"50%",cursor:allDone?"default":"pointer",
+              background:allDone?C.accent:C.bgCard,
+              border:`3px solid ${allDone?C.accent:C.borderMid}`,
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:52,transition:"all 0.25s",marginBottom:16,
             }}>
-              MARK AS DONE ✓
-            </button>
-          )}
+            {allDone ? "✓" : "○"}
+          </div>
+          <div style={{fontSize:13,color:allDone?C.accent:C.muted,fontWeight:600,letterSpacing:1.5}}>
+            {allDone ? "DONE" : "TAP WHEN COMPLETE"}
+          </div>
         </div>
       ) : (
-        /* ── Weighted exercise — full set logger ── */
+        /* LOGGED: weight + reps per set */
         <>
           <div style={{display:"flex",padding:"0 20px",marginBottom:8,position:"relative",zIndex:1}}>
             <div style={{width:28,fontSize:9,color:C.dim,letterSpacing:2,fontWeight:600}}>SET</div>
@@ -388,6 +388,49 @@ function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, el
                   <button onClick={()=>!s.done&&isActive&&canLog&&completeSet(si)} style={{width:38,height:38,minWidth:38,borderRadius:10,flexShrink:0,background:s.done?C.accent:isActive&&canLog?C.accentDim:C.bgDeep,border:`1.5px solid ${s.done?C.accent:isActive&&canLog?C.accentBorder:C.border}`,color:s.done?"#0a0a0a":isActive&&canLog?C.accent:C.dim,fontSize:16,cursor:isActive&&canLog&&!s.done?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800}}>{s.done?"✓":"○"}</button>
                 </div>
               );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* CTA */}
+      <div style={{padding:"12px 20px 30px",position:"relative",zIndex:1}}>
+        <div style={{display:"flex",gap:10}}>
+          {exIdx>0 && <button onClick={onBack} style={{padding:"14px 18px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>Back</button>}
+          <button onClick={allDone?onNext:undefined} style={{flex:1,padding:"15px",background:allDone?C.accent:C.bgCard,border:`1.5px solid ${allDone?C.accent:C.border}`,borderRadius:14,color:allDone?"#0a0a0a":C.dim,fontSize:14,fontWeight:800,cursor:allDone?"pointer":"default",fontFamily:F,transition:"all 0.2s"}}>
+            {allDone
+              ? (isLast?"FINISH WORKOUT":"NEXT →")
+              : isSimple?"Tap the circle to continue":`Complete all ${ex.sets} sets`}
+          </button>
+        </div>
+      </div>
+
+      {/* Rest timer overlay */}
+      {timer && (
+        <div style={{position:"absolute",inset:0,background:"rgba(17,18,20,0.95)",backdropFilter:"blur(20px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:20}}>
+          <div style={{fontSize:10,color:C.accent,letterSpacing:3,fontWeight:700,marginBottom:16}}>REST TIMER</div>
+          <div style={{position:"relative",width:180,height:180,marginBottom:28}}>
+            <svg width="180" height="180" style={{transform:"rotate(-90deg)",position:"absolute"}}>
+              <circle cx="90" cy="90" r="80" fill="none" stroke={C.border} strokeWidth="6"/>
+              <circle cx="90" cy="90" r="80" fill="none" stroke={C.accent} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${2*Math.PI*80}`} strokeDashoffset={`${2*Math.PI*80*(1-timerPct/100)}`} style={{transition:"stroke-dashoffset 1s linear"}}/>
+            </svg>
+            <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+              <div style={{fontSize:56,fontWeight:900,color:C.white,letterSpacing:-2,lineHeight:1}}>{fmtTime(timer.seconds)}</div>
+              <div style={{fontSize:10,color:C.muted,letterSpacing:2,marginTop:4}}>SECONDS</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24}}>
+            <button onClick={()=>adjustTimer(-20)} style={{width:56,height:56,borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.text,fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:F}}>-20</button>
+            <div style={{fontSize:9,color:C.dim,letterSpacing:2}}>ADJUST</div>
+            <button onClick={()=>adjustTimer(20)} style={{width:56,height:56,borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.text,fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:F}}>+20</button>
+          </div>
+          <button onClick={skipTimer} style={{padding:"12px 36px",borderRadius:14,background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>SKIP REST</button>
+        </div>
+      )}
+    </>
+  );
+}
+
             })}
           </div>
         </>
