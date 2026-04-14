@@ -1,53 +1,50 @@
 // ── Design Tokens ─────────────────────────────────────
 export const C = {
-  bg:         "#080808",
-  surface:    "#0d0d0d",
-  surfaceAlt: "#0a0a0a",
-  border:     "#1a1a1a",
-  borderDim:  "#111111",
-  green:      "#00ff80",
-  greenDim:   "rgba(0,255,128,0.08)",
-  greenBorder:"rgba(0,255,128,0.2)",
-  text:       "#f0f0f0",
-  textMuted:  "#888",
-  textDim:    "#444",
-  textGhost:  "#2a2a2a",
+  bg:           '#111214',
+  bgCard:       '#1c1d21',
+  bgInput:      '#1c1d21',
+  bgDeep:       '#0d0e10',
+  border:       '#2a2b2f',
+  borderMid:    '#35363b',
+  accent:       '#c4ff00',
+  accentDim:    'rgba(196,255,0,0.12)',
+  accentBorder: 'rgba(196,255,0,0.28)',
+  white:        '#ffffff',
+  text:         '#e8e9ec',
+  muted:        '#9a9b9f',
+  dim:          '#55565c',
+  ghost:        '#2a2b2f',
 };
 
-// ── Shared inline styles ───────────────────────────────
+// ── Font helper ────────────────────────────────────────
+const F = "'Lexend', sans-serif";
+
+// ── Input style ────────────────────────────────────────
 export const inputStyle = {
-  width: "100%",
-  padding: "13px 16px",
-  borderRadius: 10,
-  background: "#0e0e0e",
-  border: "1px solid #1e1e1e",
-  color: "#f0f0f0",
-  fontSize: 14,
-  outline: "none",
-  fontFamily: "'DM Sans', sans-serif",
-  boxSizing: "border-box",
+  width: '100%',
+  padding: '14px 16px',
+  borderRadius: 12,
+  background: C.bgCard,
+  border: `1px solid ${C.border}`,
+  color: C.text,
+  fontSize: 15,
+  fontFamily: F,
+  fontWeight: 400,
+  boxSizing: 'border-box',
 };
 
-export function btnStyle(variant = "primary") {
+// ── Button style ───────────────────────────────────────
+export function btnStyle(variant = 'primary') {
   const base = {
-    width: "100%",
-    padding: "15px",
-    borderRadius: 12,
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    transition: "all 0.2s",
-    fontFamily: "'DM Sans', sans-serif",
-    border: "none",
-    letterSpacing: 0.5,
+    width: '100%', padding: '15px', borderRadius: 14,
+    fontSize: 15, fontWeight: 700, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: 8, transition: 'all 0.18s', fontFamily: F,
+    border: 'none', letterSpacing: 0.3,
   };
-  if (variant === "primary")  return { ...base, background: "linear-gradient(135deg,#00ff80,#00cc55)", color: "#000" };
-  if (variant === "outline")  return { ...base, background: "transparent", border: "1px solid #2a2a2a", color: "#e0e0e0" };
-  if (variant === "ghost")    return { ...base, background: "#0e0e0e", border: "1px solid #1a1a1a", color: "#666" };
+  if (variant === 'primary')  return { ...base, background: C.accent, color: '#0a0a0a' };
+  if (variant === 'outline')  return { ...base, background: 'transparent', border: `1.5px solid ${C.border}`, color: C.text };
+  if (variant === 'ghost')    return { ...base, background: C.bgCard, border: `1px solid ${C.border}`, color: C.muted };
   return base;
 }
 
@@ -55,33 +52,18 @@ export function btnStyle(variant = "primary") {
 export function Screen({ children, style = {} }) {
   return (
     <div style={{
-      background: "#080808",
-      minHeight: "100vh",
+      background: C.bg,
+      minHeight: '100vh',
       maxWidth: 430,
-      margin: "0 auto",
-      fontFamily: "'DM Sans', sans-serif",
-      color: "#f0f0f0",
-      display: "flex",
-      flexDirection: "column",
-      position: "relative",
-      overflow: "hidden",
+      margin: '0 auto',
+      fontFamily: F,
+      color: C.text,
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+      overflow: 'hidden',
       ...style,
     }}>
-      {/* Grid background */}
-      <div style={{
-        position: "fixed", inset: 0,
-        backgroundImage: `linear-gradient(rgba(0,255,128,0.025) 1px,transparent 1px),
-          linear-gradient(90deg,rgba(0,255,128,0.025) 1px,transparent 1px)`,
-        backgroundSize: "40px 40px",
-        pointerEvents: "none", zIndex: 0,
-      }}/>
-      {/* Top glow */}
-      <div style={{
-        position: "fixed", top: -80, left: "50%", transform: "translateX(-50%)",
-        width: 500, height: 300,
-        background: "radial-gradient(ellipse,rgba(0,255,128,0.06) 0%,transparent 70%)",
-        pointerEvents: "none", zIndex: 0,
-      }}/>
       {children}
     </div>
   );
@@ -90,7 +72,7 @@ export function Screen({ children, style = {} }) {
 // ── Label ──────────────────────────────────────────────
 export function Label({ children }) {
   return (
-    <div style={{ fontSize: 11, color: "#888", letterSpacing: 1.5, fontWeight: 600, marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: C.muted, letterSpacing: 1.5, fontWeight: 600, marginBottom: 8, fontFamily: F }}>
       {children}
     </div>
   );
@@ -100,12 +82,12 @@ export function Label({ children }) {
 export function Chip({ label, active, onClick }) {
   return (
     <button onClick={onClick} style={{
-      padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500,
-      background: active ? "rgba(0,255,128,0.12)" : "#0e0e0e",
-      border: `1px solid ${active ? "#00ff80" : "#1e1e1e"}`,
-      color: active ? "#00ff80" : "#666",
-      cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-      fontFamily: "'DM Sans'",
+      padding: '7px 15px', borderRadius: 20, fontSize: 13, fontWeight: 500,
+      background: active ? C.accentDim : C.bgCard,
+      border: `1.5px solid ${active ? C.accent : C.border}`,
+      color: active ? C.accent : C.muted,
+      cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
+      fontFamily: F,
     }}>{label}</button>
   );
 }
@@ -114,58 +96,145 @@ export function Chip({ label, active, onClick }) {
 export function RadioCard({ value, label, desc, active, onClick }) {
   return (
     <button onClick={() => onClick(value)} style={{
-      background: active ? "rgba(0,255,128,0.08)" : "#0e0e0e",
-      border: `1px solid ${active ? "#00ff80" : "#1e1e1e"}`,
-      borderRadius: 12, padding: "13px 16px",
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      cursor: "pointer", transition: "all 0.2s", width: "100%",
-      fontFamily: "'DM Sans'",
+      background: active ? C.accentDim : C.bgCard,
+      border: `1.5px solid ${active ? C.accent : C.border}`,
+      borderRadius: 14, padding: '14px 16px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      cursor: 'pointer', transition: 'all 0.18s', width: '100%', fontFamily: F,
     }}>
-      <div style={{ textAlign: "left" }}>
-        <div style={{ fontWeight: 600, color: active ? "#00ff80" : "#e0e0e0", fontSize: 14 }}>{label}</div>
-        {desc && <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{desc}</div>}
+      <div style={{ textAlign: 'left' }}>
+        <div style={{ fontWeight: 600, color: active ? C.accent : C.text, fontSize: 15 }}>{label}</div>
+        {desc && <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{desc}</div>}
       </div>
       <div style={{
-        width: 18, height: 18, borderRadius: "50%",
-        border: `2px solid ${active ? "#00ff80" : "#333"}`,
-        background: active ? "#00ff80" : "transparent",
-        flexShrink: 0, transition: "all 0.2s",
-      }}/>
+        width: 20, height: 20, borderRadius: '50%',
+        border: `2px solid ${active ? C.accent : C.borderMid}`,
+        background: active ? C.accent : 'transparent',
+        flexShrink: 0, transition: 'all 0.18s',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {active && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#0a0a0a' }}/>}
+      </div>
     </button>
   );
 }
 
+// ── SVG Icons ──────────────────────────────────────────
+function IconHome({ color, size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12L12 3L21 12V20C21 20.55 20.55 21 20 21H15V16H9V21H4C3.45 21 3 20.55 3 20V12Z"/>
+    </svg>
+  );
+}
+function IconDumbbell({ color, size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6.5 6.5H5C4.17 6.5 3.5 7.17 3.5 8V10C3.5 10.83 4.17 11.5 5 11.5H6.5"/>
+      <path d="M6.5 17.5H5C4.17 17.5 3.5 16.83 3.5 16V14C3.5 13.17 4.17 12.5 5 12.5H6.5"/>
+      <path d="M17.5 6.5H19C19.83 6.5 20.5 7.17 20.5 8V10C20.5 10.83 19.83 11.5 19 11.5H17.5"/>
+      <path d="M17.5 17.5H19C19.83 17.5 20.5 16.83 20.5 16V14C20.5 13.17 19.83 12.5 19 12.5H17.5"/>
+      <line x1="6.5" y1="6.5" x2="6.5" y2="17.5"/>
+      <line x1="17.5" y1="6.5" x2="17.5" y2="17.5"/>
+      <line x1="6.5" y1="12" x2="17.5" y2="12"/>
+    </svg>
+  );
+}
+function IconNutrition({ color, size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2V8C3 10.21 4.79 12 7 12V22"/>
+      <path d="M7 2V12"/>
+      <path d="M11 2V8C11 10.21 12.79 12 15 12V22"/>
+      <path d="M19 2C19 2 21 4 21 8C21 10.21 19.21 12 17 12"/>
+      <path d="M17 12V22"/>
+    </svg>
+  );
+}
+function IconReview({ color, size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <path d="M8 17V13"/>
+      <path d="M12 17V7"/>
+      <path d="M16 17V11"/>
+    </svg>
+  );
+}
+function IconCoach({ color, size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C8.13 2 5 5.13 5 9C5 11.38 6.19 13.47 8 14.74V17C8 17.55 8.45 18 9 18H15C15.55 18 16 17.55 16 17V14.74C17.81 13.47 19 11.38 19 9C19 5.13 15.87 2 12 2Z"/>
+      <path d="M9 21C9 21.55 9.45 22 10 22H14C14.55 22 15 21.55 15 21V20H9V21Z"/>
+      <circle cx="12" cy="9" r="2.5"/>
+    </svg>
+  );
+}
+
+const NAV_ICONS = {
+  dashboard: IconHome,
+  workout:   IconDumbbell,
+  nutrition: IconNutrition,
+  review:    IconReview,
+  chat:      IconCoach,
+};
+
 // ── Bottom Nav ─────────────────────────────────────────
 export function BottomNav({ active, router }) {
   const tabs = [
-    { key: "dashboard", label: "Home",      icon: "▦", href: "/dashboard" },
-    { key: "workout",   label: "Workout",   icon: "◈", href: "/workout"   },
-    { key: "nutrition", label: "Nutrition", icon: "◑", href: "/nutrition" },
-    { key: "review",    label: "Review",    icon: "◷", href: "/review"    },
-    { key: "chat",      label: "Coach",     icon: "◉", href: "/chat"      },
+    { key: 'dashboard', label: 'HOME',      href: '/dashboard' },
+    { key: 'workout',   label: 'WORKOUT',   href: '/workout'   },
+    { key: 'nutrition', label: 'NUTRITION', href: '/nutrition' },
+    { key: 'review',    label: 'REVIEW',    href: '/review'    },
+    { key: 'chat',      label: 'COACH',     href: '/chat'      },
   ];
   return (
     <div style={{
-      position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
-      width: "100%", maxWidth: 430,
-      background: "rgba(8,8,8,0.96)", backdropFilter: "blur(12px)",
-      borderTop: "1px solid #141414",
-      display: "flex", padding: "12px 24px 28px",
+      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+      width: '100%', maxWidth: 430,
+      background: 'rgba(17,18,20,0.97)', backdropFilter: 'blur(16px)',
+      borderTop: `1px solid ${C.border}`,
+      display: 'flex', alignItems: 'center',
+      padding: '10px 8px 28px',
       zIndex: 100,
     }}>
-      {tabs.map(({ key, label, icon, href }) => (
-        <button key={key} onClick={() => router.push(href)} style={{
-          flex: 1, display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 4,
-          background: "none", border: "none", cursor: "pointer",
-        }}>
-          <span style={{ fontSize: 16, color: active === key ? "#00ff80" : "#2a2a2a" }}>{icon}</span>
-          <span style={{
-            fontSize: 9, letterSpacing: 1.5, fontWeight: 600,
-            color: active === key ? "#00ff80" : "#2a2a2a",
-          }}>{label.toUpperCase()}</span>
-        </button>
-      ))}
+      {tabs.map(({ key, label, href }) => {
+        const isActive = active === key;
+        const Icon = NAV_ICONS[key];
+        return (
+          <button key={key} onClick={() => router.push(href)} style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: 5,
+            background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0',
+          }}>
+            <div style={{
+              width: 44, height: 38, borderRadius: 12,
+              background: isActive ? C.bgCard : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.18s',
+            }}>
+              <Icon color={isActive ? C.accent : C.dim} size={20} />
+            </div>
+            <span style={{
+              fontSize: 9, letterSpacing: 0.8, fontWeight: isActive ? 700 : 500,
+              color: isActive ? C.accent : C.dim, fontFamily: F,
+            }}>{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Spinner ────────────────────────────────────────────
+export function Spinner() {
+  return (
+    <div style={{ background: C.bg, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{ position: 'relative', width: 52, height: 52 }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${C.border}` }}/>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid transparent', borderTopColor: C.accent, animation: 'spin 0.9s linear infinite' }}/>
+      </div>
     </div>
   );
 }

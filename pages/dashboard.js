@@ -1,22 +1,42 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Screen, BottomNav } from "../components/shared";
+import { Screen, BottomNav, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
-import { getWeekPlan, saveWeekPlan } from "../lib/firebase";
+import { getWeekPlan } from "../lib/firebase";
 
-const DAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+const F = "'Lexend', sans-serif";
 
 const TYPE_COLOR = {
-  strength:      "#00ff80",
-  hypertrophy:   "#00cfff",
-  conditioning:  "#ffaa00",
-  recovery:      "#aa88ff",
-  rest:          "#2a2a2a",
+  strength:     C.accent,
+  hypertrophy:  "#00cfff",
+  conditioning: "#ffaa00",
+  recovery:     "#aa88ff",
+  rest:         C.dim,
 };
 
+function getWeekDates() {
+  const today = new Date();
+  const dow   = today.getDay();
+  const mon   = new Date(today);
+  mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return d.getDate();
+  });
+}
+
+function greetingTag() {
+  const h = new Date().getHours();
+  if (h < 12) return "READY FOR THE APEX?";
+  if (h < 17) return "KEEP PUSHING TODAY";
+  return "EVENING GRIND";
+}
+
 export default function Dashboard() {
-  const router = useRouter();
+  const router  = useRouter();
   const { user, profile, loading } = useRequireAuth();
   const [plan,        setPlan]        = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
@@ -24,9 +44,10 @@ export default function Dashboard() {
 
   if (loading) return null;
 
-  const firstName   = profile?.displayName?.split(" ")[0] || user?.displayName?.split(" ")[0] || profile?.email?.split("@")[0] || "Athlete";
+  const firstName   = profile?.displayName?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Athlete";
   const userInitial = firstName[0]?.toUpperCase() || "A";
   const currentWeek = profile?.currentWeek || 1;
+  const weekDates   = getWeekDates();
 
   useEffect(() => {
     if (!user) return;
@@ -36,7 +57,7 @@ export default function Dashboard() {
         if (profile?.plan?.weekPlan) { setPlan(profile.plan); setPlanLoading(false); return; }
         const p = await getWeekPlan(user.uid, currentWeek);
         setPlan(p);
-      } catch (e) { console.error(e); }
+      } catch(e) { console.error(e); }
       setPlanLoading(false);
     }
     load();
@@ -44,137 +65,110 @@ export default function Dashboard() {
 
   const weekPlan = plan?.weekPlan || [];
   const dayData  = weekPlan[selectedDay] || null;
-  const macros   = plan?.nutrition?.macros || null;
+  const macros   = plan?.nutrition?.macros   || null;
   const calories = plan?.nutrition?.dailyCalories || null;
 
-  // Count total exercises for today
   const todayExCount = dayData?.blocks
-    ? Object.values(dayData.blocks).flat().length
+    ? Object.values(dayData.blocks).flat().filter(e => !e.isHeader).length
     : (dayData?.exercises?.length || 0);
+
+  const mainCount = dayData?.blocks?.main?.length || dayData?.exercises?.length || 0;
 
   return (
     <Screen>
-      <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"0 20px", position:"relative", zIndex:1 }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", position:"relative", zIndex:1 }}>
 
-        {/* Top bar */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:52, paddingBottom:16 }}>
-          <div>
-            <div style={{ fontSize:10, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:2 }}>APEXCOACH</div>
-            <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:1, lineHeight:1 }}>{`Good Morning, ${firstName}`}</div>
+        {/* ── TOP BAR ── */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"52px 20px 0" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <button onClick={() => router.push("/profile")} style={{
+              width:40, height:40, borderRadius:"50%",
+              background: C.bgCard, border:`1.5px solid ${C.border}`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer",
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20C4 16.69 7.58 14 12 14C16.42 14 20 16.69 20 20"/>
+              </svg>
+            </button>
+            <span style={{ fontFamily:F, fontWeight:800, fontSize:15, color:C.text, letterSpacing:1, fontStyle:"italic" }}>APEX COACH</span>
           </div>
-          <button onClick={() => router.push("/profile")} style={{ width:38, height:38, borderRadius:"50%", background:"linear-gradient(135deg,#00ff80,#00aa55)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#000", border:"none", cursor:"pointer" }}>{userInitial}</button>
+          <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round">
+              <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z"/>
+              <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21"/>
+            </svg>
+          </button>
         </div>
 
-        {/* Week label */}
-        <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #161616", paddingTop:10, marginBottom:14 }}>
-          <span style={{ fontSize:10, color:"#777", letterSpacing:2, fontWeight:600 }}>{`WEEK ${currentWeek}`}</span>
-          <span style={{ fontSize:10, color: plan?"#00ff80":"#444", letterSpacing:1.5, fontWeight:600 }}>
-            {planLoading ? "Loading..." : plan ? plan.coachNote ? "Plan ready" : "Plan ready" : "No plan yet"}
-          </span>
+        {/* ── GREETING ── */}
+        <div style={{ padding:"24px 20px 0" }}>
+          <div style={{ fontSize:11, color:C.muted, letterSpacing:3, fontWeight:600, marginBottom:6 }}>{greetingTag()}</div>
+          <div style={{ fontSize:32, fontWeight:800, color:C.white, lineHeight:1.1, letterSpacing:-0.5 }}>
+            GOOD MORNING,<br />{firstName.toUpperCase()}
+          </div>
         </div>
 
-        {planLoading ? (
-          <PlanLoader />
-        ) : !plan ? (
-          <NoPlan profile={profile} user={user} onPlanGenerated={p => setPlan(p)} />
-        ) : (
-          <>
-            {/* Week strip */}
-            <div style={{ display:"flex", gap:5, marginBottom:16 }}>
-              {weekPlan.map((day, i) => {
-                const isSelected = i === selectedDay;
-                const isRest     = day.type === "rest" || day.type === "recovery";
-                const isToday    = i === TODAY_IDX;
-                const isPast     = i < TODAY_IDX;
-                const typeColor  = TYPE_COLOR[day.type] || "#00ff80";
-                return (
-                  <button key={i} onClick={() => setSelectedDay(i)} style={{ flex:1, padding:"8px 0", borderRadius:10, display:"flex", flexDirection:"column", alignItems:"center", gap:4, background: isSelected?"rgba(0,255,128,0.08)":"#0d0d0d", border:`1px solid ${isSelected?typeColor:"#141414"}`, cursor:"pointer", transition:"all 0.2s" }}>
-                    <span style={{ fontSize:8, letterSpacing:1, color: isSelected?typeColor:"#666", fontWeight:600 }}>{(day.dayName || DAY_NAMES[i] || day.day || "").slice(0,3).toUpperCase()}</span>
-                    <div style={{ width:5, height:5, borderRadius:"50%", background: isRest?"#1e1e1e": isPast?"#00aa55": isToday?typeColor:"#1e1e1e" }}/>
-                    <span style={{ fontSize:7, fontWeight:700, color: isRest?"#222": isPast?"#00aa55": isToday?typeColor:"#222" }}>
-                      {isRest ? "—" : (day.type || "").slice(0,4).toUpperCase()}
-                    </span>
-                  </button>
-                );
-              })}
+        {/* ── DAY STRIP ── */}
+        <div style={{ padding:"28px 20px 0", display:"flex", gap:8 }}>
+          {DAY_SHORT.map((d, i) => {
+            const day      = weekPlan[i];
+            const isSelected = i === selectedDay;
+            const isToday  = i === TODAY_IDX;
+            const isRest   = !day || day.type === "rest" || day.type === "recovery";
+            const typeColor= day ? (TYPE_COLOR[day.type] || C.accent) : C.dim;
+            return (
+              <button key={i} onClick={() => setSelectedDay(i)} style={{
+                flex:1, padding:"10px 0 8px", borderRadius:20,
+                display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                background: isSelected ? C.accent : C.bgCard,
+                border: `1.5px solid ${isSelected ? C.accent : C.border}`,
+                cursor:"pointer", transition:"all 0.18s",
+              }}>
+                <span style={{ fontSize:9, letterSpacing:1, fontWeight:700, color: isSelected?"#0a0a0a":C.muted }}>{d}</span>
+                <span style={{ fontSize:18, fontWeight:800, color: isSelected?"#0a0a0a":C.text, lineHeight:1 }}>{weekDates[i]}</span>
+                <div style={{ width:5, height:5, borderRadius:"50%", background: isSelected?"rgba(0,0,0,0.35)": isRest?C.border:typeColor }}/>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── MAIN CARD ── */}
+        <div style={{ padding:"20px 20px 0", flex:1 }}>
+          {planLoading ? (
+            <LoadingCard />
+          ) : !plan ? (
+            <NoPlanCard profile={profile} user={user} onGenerated={p => setPlan(p)} />
+          ) : !dayData ? (
+            <EmptyCard />
+          ) : dayData.type === "rest" || dayData.type === "recovery" ? (
+            <RestCard dayData={dayData} selectedDay={selectedDay} onViewWorkout={() => router.push("/workout")} />
+          ) : (
+            <WorkoutCard dayData={dayData} mainCount={mainCount} calories={calories} selectedDay={selectedDay} onStart={() => router.push("/workout")} />
+          )}
+        </div>
+
+        {/* ── NUTRITION STRIP ── */}
+        {macros && (
+          <div style={{ margin:"16px 20px 100px", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <span style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700 }}>NUTRITION TODAY</span>
+              <button onClick={() => router.push("/nutrition")} style={{ background:"none", border:"none", fontSize:11, color:C.accent, cursor:"pointer", fontFamily:F, fontWeight:600, letterSpacing:1 }}>VIEW MEALS</button>
             </div>
-
-            {/* Day card */}
-            {dayData && (
-              <div key={selectedDay} style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:16, padding:20, marginBottom:12 }}>
-                {dayData.type === "rest" || dayData.type === "recovery" ? (
-                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                    {/* Rest day header */}
-                    <div style={{ textAlign:"center", paddingBottom:10, borderBottom:"1px solid #141414" }}>
-                      <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:2, color:"#444" }}>
-                        {dayData.type === "recovery" ? "ACTIVE RECOVERY" : "REST DAY"}
-                      </div>
-                      <div style={{ fontSize:12, color:"#666", marginTop:4 }}>Recovery is training. Sleep well. Stay hydrated.</div>
-                    </div>
-                    {/* Mobility exercises from plan */}
-                    {(dayData.blocks?.warmup?.length > 0 || dayData.blocks?.cooldown?.length > 0) && (
-                      <div>
-                        <div style={{ fontSize:9, color:"#888", letterSpacing:2.5, fontWeight:600, marginBottom:10 }}>RECOMMENDED MOBILITY</div>
-                        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                          {[...(dayData.blocks?.warmup || []), ...(dayData.blocks?.cooldown || [])].map((ex, i) => (
-                            <div key={i} style={{ padding:"10px 12px", background:"#111", border:"1px solid #1a1a1a", borderRadius:10 }}>
-                              <div style={{ fontSize:13, fontWeight:500, color:"#c0c0c0" }}>{ex.name}</div>
-                              {(ex.details || ex.duration) && <div style={{ fontSize:11, color:"#666", marginTop:2 }}>{ex.details || ex.duration}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ marginBottom:14 }}>
-                      <div style={{ fontSize:9, color: TYPE_COLOR[dayData.type] || "#00ff80", letterSpacing:2.5, fontWeight:600, marginBottom:6 }}>
-                        {selectedDay === TODAY_IDX ? "TODAY" : (dayData.dayName || DAY_NAMES[selectedDay] || "").toUpperCase()} · {(dayData.type || "").toUpperCase()}
-                      </div>
-                      <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, letterSpacing:1.5, lineHeight:1, marginBottom:6 }}>{dayData.focus || dayData.sessionLabel}</div>
-                      <div style={{ fontSize:12, color:"#888" }}>{dayData.muscleGroups} · {dayData.estimatedDuration} · {todayExCount} moves</div>
-                    </div>
-
-                    {selectedDay === TODAY_IDX ? (
-                      <button onClick={() => router.push("/workout")} style={{ width:"100%", padding:"15px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, fontFamily:"'DM Sans'", fontSize:14, fontWeight:700, color:"#000", cursor:"pointer" }}>
-                        Start Workout
-                      </button>
-                    ) : (
-                      <button onClick={() => router.push("/workout")} style={{ width:"100%", padding:"13px", background:"transparent", border:"1px solid #1e1e1e", borderRadius:12, fontFamily:"'DM Sans'", fontSize:13, fontWeight:600, color:"#888", cursor:"pointer" }}>
-                        View Workout
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Nutrition macros */}
-            {macros && (
-              <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:16, padding:"14px 16px", marginBottom:80 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                  <div style={{ fontSize:9, color:"#888", letterSpacing:2.5, fontWeight:600 }}>TODAY'S NUTRITION</div>
-                  <button onClick={() => router.push("/nutrition")} style={{ background:"none", border:"none", fontSize:10, color:"#00ff80", cursor:"pointer", fontFamily:"'DM Sans'", letterSpacing:1 }}>VIEW MEALS</button>
+            <div style={{ display:"flex", gap:6 }}>
+              {[
+                { label:"KCAL",    value:calories,      color:C.accent },
+                { label:"PROTEIN", value:macros.protein, color:"#00cfff" },
+                { label:"CARBS",   value:macros.carbs,   color:"#ffaa00" },
+                { label:"FAT",     value:macros.fat,     color:"#ff5e8a" },
+              ].map(m => (
+                <div key={m.label} style={{ flex:1, textAlign:"center", padding:"10px 4px", background:C.bgDeep, borderRadius:10 }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:m.color }}>{m.value}</div>
+                  <div style={{ fontSize:8, color:C.dim, letterSpacing:1, fontWeight:600, marginTop:2 }}>{m.label}</div>
                 </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  {[
-                    { label:"Calories", value:calories,      unit:"kcal", color:"#00ff80" },
-                    { label:"Protein",  value:macros.protein, unit:"g",    color:"#00cfff" },
-                    { label:"Carbs",    value:macros.carbs,   unit:"g",    color:"#ffaa00" },
-                    { label:"Fat",      value:macros.fat,     unit:"g",    color:"#ff5e8a" },
-                  ].map(m => (
-                    <div key={m.label} style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
-                      <div style={{ fontSize:9, color:"#888", letterSpacing:1, fontWeight:600 }}>{m.label.toUpperCase()}</div>
-                      <div style={{ fontFamily:"'Bebas Neue'", fontSize:20, letterSpacing:1, color:m.color, lineHeight:1 }}>
-                        {m.value}<span style={{ fontSize:9, color:"#666", fontFamily:"'DM Sans'", fontWeight:400 }}> {m.unit}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+              ))}
+            </div>
+          </div>
         )}
       </div>
       <BottomNav active="dashboard" router={router} />
@@ -182,44 +176,145 @@ export default function Dashboard() {
   );
 }
 
-function PlanLoader() {
+// ── Workout Card ───────────────────────────────────────
+function WorkoutCard({ dayData, mainCount, calories, selectedDay, onStart }) {
+  const typeColor = TYPE_COLOR[dayData.type] || C.accent;
+  const isToday   = selectedDay === TODAY_IDX;
+  const level     = { beginner:"STARTER", intermediate:"ELITE", advanced:"PRO" }["intermediate"] || "ELITE";
+  const parts     = (dayData.focus || dayData.sessionLabel || "").split(" ");
+  const last      = parts.pop();
+  const rest      = parts.join(" ");
+
   return (
-    <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12 }}>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width:36, height:36, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#00ff80", animation:"spin 1s linear infinite" }}/>
-      <div style={{ fontSize:12, color:"#777", letterSpacing:2 }}>LOADING YOUR PLAN</div>
+    <div style={{ background:C.bgCard, borderRadius:20, padding:22, border:`1px solid ${C.border}` }}>
+      {/* Badges */}
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+        <span style={{ background:C.accent, color:"#0a0a0a", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:20, letterSpacing:1 }}>
+          {(dayData.type || "STRENGTH").toUpperCase()}
+        </span>
+        <span style={{ background:"transparent", border:`1.5px solid ${C.border}`, color:C.muted, fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:20, letterSpacing:1 }}>
+          {level}
+        </span>
+      </div>
+
+      {/* Session name */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:36, fontWeight:900, color:C.white, lineHeight:1, letterSpacing:-1 }}>
+          {rest || last}
+        </div>
+        {rest && (
+          <div style={{ fontSize:36, fontWeight:900, color:C.accent, lineHeight:1, letterSpacing:-1 }}>
+            {last}
+          </div>
+        )}
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display:"flex", gap:20, marginBottom:8 }}>
+        {dayData.estimatedDuration && (
+          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span style={{ fontSize:13, color:C.muted, fontWeight:500 }}>{dayData.estimatedDuration.toUpperCase()}</span>
+          </div>
+        )}
+        {mainCount > 0 && (
+          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2"><path d="M6.5 6.5H5C4.17 6.5 3.5 7.17 3.5 8V10C3.5 10.83 4.17 11.5 5 11.5H6.5"/><path d="M17.5 6.5H19C19.83 6.5 20.5 7.17 20.5 8V10C20.5 10.83 19.83 11.5 19 11.5H17.5"/><line x1="6.5" y1="6.5" x2="6.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="17.5" y2="17.5"/><line x1="6.5" y1="12" x2="17.5" y2="12"/><path d="M6.5 17.5H5C4.17 17.5 3.5 16.83 3.5 16V14C3.5 13.17 4.17 12.5 5 12.5H6.5"/><path d="M17.5 17.5H19C19.83 17.5 20.5 16.83 20.5 16V14C20.5 13.17 19.83 12.5 19 12.5H17.5"/></svg>
+            <span style={{ fontSize:13, color:C.muted, fontWeight:500 }}>{mainCount} MOVES</span>
+          </div>
+        )}
+      </div>
+
+      {calories && (
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={C.muted}><path d="M11.85 2.1C11.9 2.04 11.95 2 12 2C12.05 2 12.1 2.04 12.15 2.1L13.8 4.5C15.3 6.7 16 9.3 16 12C16 14.2 15.2 16.2 13.9 17.7C13.6 14.8 11.5 12.4 8.7 11.4C9.2 8.5 10.3 5.1 11.85 2.1ZM8 12.5C10.5 13.4 12 15.7 12 18.5C12 20.43 10.43 22 8.5 22C6.57 22 5 20.43 5 18.5C5 15.7 6.5 13.4 8 12.5Z"/></svg>
+          <span style={{ fontSize:13, color:C.muted, fontWeight:500 }}>{calories} KCAL</span>
+        </div>
+      )}
+
+      <button onClick={onStart} style={{
+        width:"100%", padding:"16px",
+        background: isToday ? C.accent : "transparent",
+        border: isToday ? "none" : `1.5px solid ${C.border}`,
+        borderRadius:14, fontFamily:F, fontSize:14, fontWeight:800,
+        color: isToday ? "#0a0a0a" : C.muted,
+        cursor:"pointer", letterSpacing:1,
+      }}>
+        {isToday ? "START WORKOUT" : "VIEW WORKOUT"}
+      </button>
     </div>
   );
 }
 
-function NoPlan({ profile, user, onPlanGenerated }) {
-  const [generating, setGenerating] = useState(false);
-  const [error,       setError]       = useState("");
+// ── Rest Card ──────────────────────────────────────────
+function RestCard({ dayData, selectedDay, onViewWorkout }) {
+  const isToday    = selectedDay === TODAY_IDX;
+  const mobilityEx = [...(dayData.blocks?.warmup || []), ...(dayData.blocks?.cooldown || [])];
+  return (
+    <div style={{ background:C.bgCard, borderRadius:20, padding:22, border:`1px solid ${C.border}` }}>
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+        <span style={{ background:C.bgDeep, color:C.muted, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:20, letterSpacing:1 }}>REST</span>
+        <span style={{ background:"transparent", border:`1.5px solid ${C.border}`, color:C.dim, fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:20, letterSpacing:1 }}>RECOVERY</span>
+      </div>
+      <div style={{ fontSize:32, fontWeight:900, color:C.muted, lineHeight:1.1, letterSpacing:-0.5, marginBottom:8 }}>REST<br/>DAY</div>
+      <div style={{ fontSize:13, color:C.dim, marginBottom:mobilityEx.length?20:0 }}>Recovery is training. Sleep well.</div>
+      {mobilityEx.length > 0 && (
+        <>
+          <div style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700, marginBottom:10 }}>RECOMMENDED MOBILITY</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {mobilityEx.map((ex, i) => (
+              <div key={i} style={{ padding:"10px 14px", background:C.bgDeep, borderRadius:12, border:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{ex.name}</div>
+                {(ex.details || ex.duration) && <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{ex.details || ex.duration}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
-  const regenerate = async () => {
-    setGenerating(true); setError("");
+// ── Loading / Empty / No-Plan ──────────────────────────
+function LoadingCard() {
+  return (
+    <div style={{ background:C.bgCard, borderRadius:20, padding:32, border:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", minHeight:200 }}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width:32, height:32, borderRadius:"50%", border:`2px solid ${C.border}`, borderTopColor:C.accent, animation:"spin 0.9s linear infinite" }}/>
+    </div>
+  );
+}
+function EmptyCard() {
+  return (
+    <div style={{ background:C.bgCard, borderRadius:20, padding:32, border:`1px solid ${C.border}`, textAlign:"center", minHeight:200, display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ color:C.dim, fontSize:14 }}>No session for this day</div>
+    </div>
+  );
+}
+function NoPlanCard({ profile, user, onGenerated }) {
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+  const generate = async () => {
+    setLoading(true); setError("");
     try {
-      const data = await fetch("/api/generate-plan", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(profile || {}),
-      }).then(r => r.json());
+      const r    = await fetch("/api/generate-plan", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(profile||{}) });
+      const data = await r.json();
       if (data.error) { setError(data.error); return; }
       const { saveWeekPlan } = await import("../lib/firebase");
-      if (user) await saveWeekPlan(user.uid, profile?.currentWeek || 1, data);
-      onPlanGenerated(data);
+      if (user) await saveWeekPlan(user.uid, profile?.currentWeek||1, data);
+      onGenerated(data);
     } catch(e) { setError(e.message); }
-    finally { setGenerating(false); }
+    finally { setLoading(false); }
   };
-
   return (
-    <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12, padding:"0 24px", textAlign:"center" }}>
+    <div style={{ background:C.bgCard, borderRadius:20, padding:24, border:`1px solid ${C.border}`, textAlign:"center" }}>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      <div style={{ fontFamily:"'Bebas Neue'", fontSize:22, letterSpacing:2, color:"#555" }}>NO PLAN YET</div>
-      <div style={{ fontSize:12, color:"#777", lineHeight:1.7 }}>Tap below to generate your personalized AI plan.</div>
-      {error && <div style={{ fontSize:11, color:"#ff5e5e", whiteSpace:"pre-wrap", textAlign:"left" }}>{error}</div>}
-      <button onClick={regenerate} disabled={generating} style={{ marginTop:8, padding:"14px 28px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, color:"#000", fontSize:13, fontWeight:700, cursor:generating?"default":"pointer", fontFamily:"'DM Sans'", opacity:generating?0.6:1, display:"flex", alignItems:"center", gap:8 }}>
-        {generating && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#000", animation:"spin 0.8s linear infinite" }}/>}
-        {generating ? "Generating..." : "Generate My Plan"}
+      <div style={{ fontSize:22, fontWeight:800, color:C.muted, letterSpacing:-0.5, marginBottom:8 }}>NO PLAN YET</div>
+      <div style={{ fontSize:13, color:C.dim, lineHeight:1.6, marginBottom:20 }}>Generate your personalized AI plan to get started.</div>
+      {error && <div style={{ fontSize:11, color:"#ff5e5e", marginBottom:12 }}>{error}</div>}
+      <button onClick={generate} disabled={loading} style={{ width:"100%", padding:"15px", background:C.accent, border:"none", borderRadius:14, fontFamily:"'Lexend',sans-serif", fontSize:14, fontWeight:800, color:"#0a0a0a", cursor:loading?"default":"pointer", opacity:loading?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+        {loading && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#0a0a0a", animation:"spin 0.8s linear infinite" }}/>}
+        {loading ? "Generating..." : "Generate My Plan"}
       </button>
     </div>
   );
