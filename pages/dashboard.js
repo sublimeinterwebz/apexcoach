@@ -35,6 +35,13 @@ function greetingTag() {
   return "EVENING GRIND";
 }
 
+function greetingWord() {
+  const h = new Date().getHours();
+  if (h < 12) return "GOOD MORNING,";
+  if (h < 17) return "GOOD AFTERNOON,";
+  return "GOOD EVENING,";
+}
+
 export default function Dashboard() {
   const router  = useRouter();
   const { user, profile, loading } = useRequireAuth();
@@ -107,7 +114,7 @@ export default function Dashboard() {
         <div style={{ padding:"24px 20px 0" }}>
           <div style={{ fontSize:11, color:C.muted, letterSpacing:3, fontWeight:600, marginBottom:6 }}>{greetingTag()}</div>
           <div style={{ fontSize:32, fontWeight:800, color:C.white, lineHeight:1.1, letterSpacing:-0.5 }}>
-            GOOD MORNING,<br />{firstName.toUpperCase()}
+            {greetingWord()}<br />{firstName.toUpperCase()}
           </div>
         </div>
 
@@ -144,9 +151,9 @@ export default function Dashboard() {
           ) : !dayData ? (
             <EmptyCard />
           ) : dayData.type === "rest" || dayData.type === "recovery" ? (
-            <RestCard dayData={dayData} selectedDay={selectedDay} onViewWorkout={() => router.push("/workout")} />
+            <RestCard dayData={dayData} selectedDay={selectedDay} onViewWorkout={() => router.push(`/workout?day=${selectedDay}`)} />
           ) : (
-            <WorkoutCard dayData={dayData} mainCount={mainCount} calories={calories} selectedDay={selectedDay} onStart={() => router.push("/workout")} />
+            <WorkoutCard dayData={dayData} mainCount={mainCount} calories={calories} selectedDay={selectedDay} onStart={() => router.push(`/workout?day=${selectedDay}`)} />
           )}
         </div>
 

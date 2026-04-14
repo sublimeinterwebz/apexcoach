@@ -48,7 +48,9 @@ export default function Workout() {
   const { user, profile, loading } = useRequireAuth();
   const [weekPlan,    setWeekPlan]    = useState([]);
   const [planLoading, setPlanLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(TODAY_IDX);
+  // Read ?day= query param from dashboard navigation, fallback to today
+  const initialDay = typeof router.query.day !== "undefined" ? parseInt(router.query.day) : TODAY_IDX;
+  const [selectedDay, setSelectedDay] = useState(initialDay);
   const [phase,       setPhase]       = useState("browse");
   const [exIdx,       setExIdx]       = useState(0);
   const [allSets,     setAllSets]     = useState([]);
@@ -58,6 +60,13 @@ export default function Workout() {
 
 
   const weekDates = getWeekDates();
+
+  // Sync selected day when navigated from dashboard with ?day= param
+  useEffect(() => {
+    if (typeof router.query.day !== "undefined") {
+      setSelectedDay(parseInt(router.query.day));
+    }
+  }, [router.query.day]);
 
   useEffect(() => {
     if (!user) return;
