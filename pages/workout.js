@@ -56,7 +56,6 @@ export default function Workout() {
   const [elapsed,     setElapsed]     = useState(0);
   const timerRef = useRef(null), elapsedRef = useRef(null);
 
-  if (loading) return null;
 
   const weekDates = getWeekDates();
 
@@ -111,6 +110,8 @@ export default function Workout() {
         onExit={()=>setPhase("browse")} />
     </Screen>
   );
+
+  if (loading) return null;
 
   return (
     <Screen>

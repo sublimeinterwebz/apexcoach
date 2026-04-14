@@ -21,7 +21,6 @@ export default function Chat() {
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
-  if (loading) return null;
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, sending]);
 
@@ -55,6 +54,8 @@ export default function Chat() {
 
   const handleKey = e => { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} };
   const isEmpty   = messages.length===0;
+
+  if (loading) return null;
 
   return (
     <Screen style={{height:"100vh",overflow:"hidden"}}>

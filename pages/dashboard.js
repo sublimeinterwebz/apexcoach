@@ -42,26 +42,28 @@ export default function Dashboard() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(TODAY_IDX);
 
+  // ALL hooks must be BEFORE any early return (Rules of Hooks)
+  useEffect(() => {
+    if (!user) return;
+    const wk = profile?.currentWeek || 1;
+    async function load() {
+      setPlanLoading(true);
+      try {
+        if (profile?.plan?.weekPlan) { setPlan(profile.plan); setPlanLoading(false); return; }
+        const p = await getWeekPlan(user.uid, wk);
+        setPlan(p);
+      } catch(e) { console.error(e); }
+      setPlanLoading(false);
+    }
+    load();
+  }, [user, profile?.currentWeek]);
+
   if (loading) return null;
 
   const firstName   = profile?.displayName?.split(" ")[0] || user?.displayName?.split(" ")[0] || "Athlete";
   const userInitial = firstName[0]?.toUpperCase() || "A";
   const currentWeek = profile?.currentWeek || 1;
   const weekDates   = getWeekDates();
-
-  useEffect(() => {
-    if (!user) return;
-    async function load() {
-      setPlanLoading(true);
-      try {
-        if (profile?.plan?.weekPlan) { setPlan(profile.plan); setPlanLoading(false); return; }
-        const p = await getWeekPlan(user.uid, currentWeek);
-        setPlan(p);
-      } catch(e) { console.error(e); }
-      setPlanLoading(false);
-    }
-    load();
-  }, [user, currentWeek]);
 
   const weekPlan = plan?.weekPlan || [];
   const dayData  = weekPlan[selectedDay] || null;

@@ -23,7 +23,6 @@ export default function Review() {
   const [genStep,  setGenStep]  = useState(0);
   const intervalRef = useRef(null);
 
-  if (loading) return null;
 
   const currentWeek = profile?.currentWeek || 1;
 
@@ -58,6 +57,8 @@ export default function Review() {
 
   const exercises    = plan ? plan.weekPlan?.filter(d=>d.type==="workout").flatMap(d=>(d.exercises||d.blocks?.main||[]).map(e=>({...e,day:d.focus||d.sessionLabel}))) : [];
   const totalWorkouts= plan?.weekPlan?.filter(d=>d.type==="workout").length || 0;
+
+  if (loading) return null;
 
   return (
     <Screen>

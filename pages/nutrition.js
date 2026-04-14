@@ -13,7 +13,6 @@ export default function Nutrition() {
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
 
-  if (loading) return null;
 
   useEffect(() => {
     if (!user) return;
@@ -29,6 +28,8 @@ export default function Nutrition() {
   }, [user]);
 
   const macros = nutrition?.macros || {};
+
+  if (loading) return null;
 
   return (
     <Screen>
