@@ -67,7 +67,7 @@ export default function Dashboard() {
 
         {/* Week label */}
         <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #161616", paddingTop:10, marginBottom:14 }}>
-          <span style={{ fontSize:10, color:"#333", letterSpacing:2, fontWeight:600 }}>{`WEEK ${currentWeek}`}</span>
+          <span style={{ fontSize:10, color:"#777", letterSpacing:2, fontWeight:600 }}>{`WEEK ${currentWeek}`}</span>
           <span style={{ fontSize:10, color: plan?"#00ff80":"#444", letterSpacing:1.5, fontWeight:600 }}>
             {planLoading ? "Loading..." : plan ? plan.coachNote ? "Plan ready" : "Plan ready" : "No plan yet"}
           </span>
@@ -89,7 +89,7 @@ export default function Dashboard() {
                 const typeColor  = TYPE_COLOR[day.type] || "#00ff80";
                 return (
                   <button key={i} onClick={() => setSelectedDay(i)} style={{ flex:1, padding:"8px 0", borderRadius:10, display:"flex", flexDirection:"column", alignItems:"center", gap:4, background: isSelected?"rgba(0,255,128,0.08)":"#0d0d0d", border:`1px solid ${isSelected?typeColor:"#141414"}`, cursor:"pointer", transition:"all 0.2s" }}>
-                    <span style={{ fontSize:8, letterSpacing:1, color: isSelected?typeColor:"#2a2a2a", fontWeight:600 }}>{(day.dayName || DAY_NAMES[i] || day.day || "").slice(0,3).toUpperCase()}</span>
+                    <span style={{ fontSize:8, letterSpacing:1, color: isSelected?typeColor:"#666", fontWeight:600 }}>{(day.dayName || DAY_NAMES[i] || day.day || "").slice(0,3).toUpperCase()}</span>
                     <div style={{ width:5, height:5, borderRadius:"50%", background: isRest?"#1e1e1e": isPast?"#00aa55": isToday?typeColor:"#1e1e1e" }}/>
                     <span style={{ fontSize:7, fontWeight:700, color: isRest?"#222": isPast?"#00aa55": isToday?typeColor:"#222" }}>
                       {isRest ? "—" : (day.type || "").slice(0,4).toUpperCase()}
@@ -103,11 +103,28 @@ export default function Dashboard() {
             {dayData && (
               <div key={selectedDay} style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:16, padding:20, marginBottom:12 }}>
                 {dayData.type === "rest" || dayData.type === "recovery" ? (
-                  <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", gap:6, paddingVertical:12 }}>
-                    <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:2, color:"#1e1e1e" }}>
-                      {dayData.type === "recovery" ? "ACTIVE RECOVERY" : "REST DAY"}
+                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                    {/* Rest day header */}
+                    <div style={{ textAlign:"center", paddingBottom:10, borderBottom:"1px solid #141414" }}>
+                      <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:2, color:"#444" }}>
+                        {dayData.type === "recovery" ? "ACTIVE RECOVERY" : "REST DAY"}
+                      </div>
+                      <div style={{ fontSize:12, color:"#666", marginTop:4 }}>Recovery is training. Sleep well. Stay hydrated.</div>
                     </div>
-                    <div style={{ fontSize:12, color:"#2a2a2a", textAlign:"center" }}>Recovery is training. Sleep well. Stay hydrated.</div>
+                    {/* Mobility exercises from plan */}
+                    {(dayData.blocks?.warmup?.length > 0 || dayData.blocks?.cooldown?.length > 0) && (
+                      <div>
+                        <div style={{ fontSize:9, color:"#888", letterSpacing:2.5, fontWeight:600, marginBottom:10 }}>RECOMMENDED MOBILITY</div>
+                        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                          {[...(dayData.blocks?.warmup || []), ...(dayData.blocks?.cooldown || [])].map((ex, i) => (
+                            <div key={i} style={{ padding:"10px 12px", background:"#111", border:"1px solid #1a1a1a", borderRadius:10 }}>
+                              <div style={{ fontSize:13, fontWeight:500, color:"#c0c0c0" }}>{ex.name}</div>
+                              {(ex.details || ex.duration) && <div style={{ fontSize:11, color:"#666", marginTop:2 }}>{ex.details || ex.duration}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -116,7 +133,7 @@ export default function Dashboard() {
                         {selectedDay === TODAY_IDX ? "TODAY" : (dayData.dayName || DAY_NAMES[selectedDay] || "").toUpperCase()} · {(dayData.type || "").toUpperCase()}
                       </div>
                       <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, letterSpacing:1.5, lineHeight:1, marginBottom:6 }}>{dayData.focus || dayData.sessionLabel}</div>
-                      <div style={{ fontSize:12, color:"#666" }}>{dayData.muscleGroups} · {dayData.estimatedDuration} · {todayExCount} moves</div>
+                      <div style={{ fontSize:12, color:"#888" }}>{dayData.muscleGroups} · {dayData.estimatedDuration} · {todayExCount} moves</div>
                     </div>
 
                     {selectedDay === TODAY_IDX ? (
@@ -124,7 +141,7 @@ export default function Dashboard() {
                         Start Workout
                       </button>
                     ) : (
-                      <button onClick={() => router.push("/workout")} style={{ width:"100%", padding:"13px", background:"transparent", border:"1px solid #1e1e1e", borderRadius:12, fontFamily:"'DM Sans'", fontSize:13, fontWeight:600, color:"#555", cursor:"pointer" }}>
+                      <button onClick={() => router.push("/workout")} style={{ width:"100%", padding:"13px", background:"transparent", border:"1px solid #1e1e1e", borderRadius:12, fontFamily:"'DM Sans'", fontSize:13, fontWeight:600, color:"#888", cursor:"pointer" }}>
                         View Workout
                       </button>
                     )}
@@ -137,7 +154,7 @@ export default function Dashboard() {
             {macros && (
               <div style={{ background:"#0d0d0d", border:"1px solid #1a1a1a", borderRadius:16, padding:"14px 16px", marginBottom:80 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                  <div style={{ fontSize:9, color:"#444", letterSpacing:2.5, fontWeight:600 }}>TODAY'S NUTRITION</div>
+                  <div style={{ fontSize:9, color:"#888", letterSpacing:2.5, fontWeight:600 }}>TODAY'S NUTRITION</div>
                   <button onClick={() => router.push("/nutrition")} style={{ background:"none", border:"none", fontSize:10, color:"#00ff80", cursor:"pointer", fontFamily:"'DM Sans'", letterSpacing:1 }}>VIEW MEALS</button>
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
@@ -148,9 +165,9 @@ export default function Dashboard() {
                     { label:"Fat",      value:macros.fat,     unit:"g",    color:"#ff5e8a" },
                   ].map(m => (
                     <div key={m.label} style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
-                      <div style={{ fontSize:9, color:"#444", letterSpacing:1, fontWeight:600 }}>{m.label.toUpperCase()}</div>
+                      <div style={{ fontSize:9, color:"#888", letterSpacing:1, fontWeight:600 }}>{m.label.toUpperCase()}</div>
                       <div style={{ fontFamily:"'Bebas Neue'", fontSize:20, letterSpacing:1, color:m.color, lineHeight:1 }}>
-                        {m.value}<span style={{ fontSize:9, color:"#2a2a2a", fontFamily:"'DM Sans'", fontWeight:400 }}> {m.unit}</span>
+                        {m.value}<span style={{ fontSize:9, color:"#666", fontFamily:"'DM Sans'", fontWeight:400 }}> {m.unit}</span>
                       </div>
                     </div>
                   ))}
@@ -170,7 +187,7 @@ function PlanLoader() {
     <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12 }}>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
       <div style={{ width:36, height:36, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#00ff80", animation:"spin 1s linear infinite" }}/>
-      <div style={{ fontSize:12, color:"#444", letterSpacing:2 }}>LOADING YOUR PLAN</div>
+      <div style={{ fontSize:12, color:"#777", letterSpacing:2 }}>LOADING YOUR PLAN</div>
     </div>
   );
 }
@@ -197,8 +214,8 @@ function NoPlan({ profile, user, onPlanGenerated }) {
   return (
     <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12, padding:"0 24px", textAlign:"center" }}>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      <div style={{ fontFamily:"'Bebas Neue'", fontSize:22, letterSpacing:2, color:"#1e1e1e" }}>NO PLAN YET</div>
-      <div style={{ fontSize:12, color:"#444", lineHeight:1.7 }}>Tap below to generate your personalized AI plan.</div>
+      <div style={{ fontFamily:"'Bebas Neue'", fontSize:22, letterSpacing:2, color:"#555" }}>NO PLAN YET</div>
+      <div style={{ fontSize:12, color:"#777", lineHeight:1.7 }}>Tap below to generate your personalized AI plan.</div>
       {error && <div style={{ fontSize:11, color:"#ff5e5e", whiteSpace:"pre-wrap", textAlign:"left" }}>{error}</div>}
       <button onClick={regenerate} disabled={generating} style={{ marginTop:8, padding:"14px 28px", background:"linear-gradient(135deg,#00ff80,#00cc55)", border:"none", borderRadius:12, color:"#000", fontSize:13, fontWeight:700, cursor:generating?"default":"pointer", fontFamily:"'DM Sans'", opacity:generating?0.6:1, display:"flex", alignItems:"center", gap:8 }}>
         {generating && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#000", animation:"spin 0.8s linear infinite" }}/>}
