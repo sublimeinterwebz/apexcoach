@@ -271,9 +271,7 @@ function StepTitle({ title, sub }) {
   );
 }
 
-function Label({ children }) {
-  return <div style={{ fontSize:11, color:"#888", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>{children}</div>;
-}
+
 
 function UnitToggle({ value, options, onChange }) {
   return (
