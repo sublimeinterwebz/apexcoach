@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
-import { getWeekPlan, saveWorkoutLog, saveWeekFeedback } from "../lib/firebase";
+import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
 const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
@@ -57,6 +57,7 @@ export default function Workout() {
   const [timer,       setTimer]       = useState(null);
   const [elapsed,     setElapsed]     = useState(0);
   const [workoutLog,  setWorkoutLog]  = useState(null); // saved after finish
+  const [completedLog, setCompletedLog] = useState(null);  // existing log from Firestore
   const timerRef = useRef(null), elapsedRef = useRef(null);
 
   // Sync from dashboard ?day= param
@@ -71,8 +72,13 @@ export default function Workout() {
     async function load() {
       setPlanLoading(true);
       try {
-        const p = profile?.plan || await getWeekPlan(user.uid, profile?.currentWeek||1);
+        const week = profile?.currentWeek || 1;
+        const [p, existingLog] = await Promise.all([
+          profile?.plan ? Promise.resolve(profile.plan) : getWeekPlan(user.uid, week),
+          getWorkoutLog(user.uid, week, TODAY_IDX),
+        ]);
         if (p?.weekPlan) setWeekPlan(p.weekPlan);
+        if (existingLog) setCompletedLog(existingLog);
       } catch(e) { console.error(e); }
       setPlanLoading(false);
     }
@@ -239,7 +245,7 @@ export default function Workout() {
           ) : dayData.type==="rest"||dayData.type==="recovery" ? (
             <RestView day={dayData} isToday={selectedDay===TODAY_IDX} />
           ) : (
-            <WorkoutView day={dayData} flat={flat} loggable={loggable} isToday={selectedDay===TODAY_IDX} onStart={startWorkout} />
+            <WorkoutView day={dayData} flat={flat} loggable={loggable} isToday={selectedDay===TODAY_IDX} onStart={startWorkout} completedLog={selectedDay===TODAY_IDX ? completedLog : null} />
           )}
         </div>
       </div>
@@ -278,17 +284,36 @@ function RestView({ day, isToday }) {
 }
 
 // ── Workout View (preview) ─────────────────────────────
-function WorkoutView({ day, flat, loggable, isToday, onStart }) {
+function WorkoutView({ day, flat, loggable, isToday, onStart, completedLog }) {
+  const isCompleted = !!completedLog;
   return (
     <div>
-      <div style={{background:C.bgCard,borderRadius:20,padding:20,border:`1px solid ${C.border}`,marginBottom:14}}>
+      <div style={{background:C.bgCard,borderRadius:20,padding:20,border:`1.5px solid ${isCompleted?"#5a8a00":C.border}`,marginBottom:14}}>
         <div style={{display:"flex",gap:8,marginBottom:14}}>
-          <span style={{background:C.accent,color:"#0a0a0a",fontSize:11,fontWeight:700,padding:"4px 12px",borderRadius:20,letterSpacing:1}}>{(day.type||"STRENGTH").toUpperCase()}</span>
+          <span style={{background:isCompleted?"#5a8a00":C.accent,color:"#0a0a0a",fontSize:11,fontWeight:700,padding:"4px 12px",borderRadius:20,letterSpacing:1}}>{isCompleted?"COMPLETED":(day.type||"STRENGTH").toUpperCase()}</span>
           <span style={{background:"transparent",border:`1.5px solid ${C.border}`,color:C.muted,fontSize:11,fontWeight:600,padding:"4px 12px",borderRadius:20,letterSpacing:1}}>{day.estimatedDuration}</span>
         </div>
         <div style={{fontSize:30,fontWeight:900,color:C.white,lineHeight:1.05,letterSpacing:-0.5,marginBottom:6}}>{day.focus||day.sessionLabel}</div>
         <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{day.muscleGroups} · {loggable.length} exercises</div>
-        {isToday ? (
+
+        {isCompleted ? (
+          // Already done — show stats, no start button
+          <div style={{background:C.bgDeep,borderRadius:14,padding:"14px 16px"}}>
+            <div style={{fontSize:10,color:"#5a8a00",letterSpacing:2.5,fontWeight:700,marginBottom:10}}>SESSION LOGGED</div>
+            <div style={{display:"flex",gap:8}}>
+              {[
+                {label:"SETS",     value:completedLog.totalSets || "—"},
+                {label:"VOLUME",   value:completedLog.totalVolume ? `${completedLog.totalVolume}kg` : "—"},
+                {label:"DURATION", value:completedLog.durationSecs ? `${Math.floor(completedLog.durationSecs/60)}min` : "—"},
+              ].map(({label,value}) => (
+                <div key={label} style={{flex:1,textAlign:"center",background:C.bgCard,borderRadius:10,padding:"10px 6px"}}>
+                  <div style={{fontSize:16,fontWeight:800,color:"#7acc00"}}>{value}</div>
+                  <div style={{fontSize:9,color:C.dim,letterSpacing:1.5,fontWeight:600,marginTop:3}}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isToday ? (
           <button onClick={onStart} style={{width:"100%",padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:14,fontWeight:800,color:"#0a0a0a",cursor:"pointer",letterSpacing:0.5}}>START WORKOUT</button>
         ) : (
           <div style={{fontSize:12,color:C.dim,fontStyle:"italic",textAlign:"center",padding:"4px 0"}}>Navigate to today's session to start</div>

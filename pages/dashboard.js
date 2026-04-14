@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
-import { getWeekPlan } from "../lib/firebase";
+import { getWeekPlan, getWorkoutLog } from "../lib/firebase";
 
 const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
@@ -47,7 +47,8 @@ export default function Dashboard() {
   const { user, profile, loading } = useRequireAuth();
   const [plan,        setPlan]        = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(TODAY_IDX);
+  const [selectedDay,    setSelectedDay]    = useState(TODAY_IDX);
+  const [completedToday, setCompletedToday] = useState(false);
 
   // ALL hooks must be BEFORE any early return (Rules of Hooks)
   useEffect(() => {
@@ -153,7 +154,7 @@ export default function Dashboard() {
           ) : dayData.type === "rest" || dayData.type === "recovery" ? (
             <RestCard dayData={dayData} selectedDay={selectedDay} onViewWorkout={() => router.push(`/workout?day=${selectedDay}`)} />
           ) : (
-            <WorkoutCard dayData={dayData} mainCount={mainCount} calories={calories} selectedDay={selectedDay} onStart={() => router.push(`/workout?day=${selectedDay}`)} />
+            <WorkoutCard dayData={dayData} mainCount={mainCount} calories={calories} selectedDay={selectedDay} completedToday={completedToday} onStart={() => router.push(`/workout?day=${selectedDay}`)} />
           )}
         </div>
 
@@ -186,7 +187,7 @@ export default function Dashboard() {
 }
 
 // ── Workout Card ───────────────────────────────────────
-function WorkoutCard({ dayData, mainCount, calories, selectedDay, onStart }) {
+function WorkoutCard({ dayData, mainCount, calories, selectedDay, completedToday, onStart }) {
   const typeColor = TYPE_COLOR[dayData.type] || C.accent;
   const isToday   = selectedDay === TODAY_IDX;
   const level     = { beginner:"STARTER", intermediate:"ELITE", advanced:"PRO" }["intermediate"] || "ELITE";
@@ -241,16 +242,23 @@ function WorkoutCard({ dayData, mainCount, calories, selectedDay, onStart }) {
         </div>
       )}
 
-      <button onClick={onStart} style={{
-        width:"100%", padding:"16px",
-        background: isToday ? C.accent : "transparent",
-        border: isToday ? "none" : `1.5px solid ${C.border}`,
-        borderRadius:14, fontFamily:F, fontSize:14, fontWeight:800,
-        color: isToday ? "#0a0a0a" : C.muted,
-        cursor:"pointer", letterSpacing:1,
-      }}>
-        {isToday ? "START WORKOUT" : "VIEW WORKOUT"}
-      </button>
+      {completedToday && isToday ? (
+        <div style={{width:"100%",padding:"14px",background:"rgba(90,138,0,0.12)",border:"1.5px solid #5a8a00",borderRadius:14,textAlign:"center"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#7acc00",letterSpacing:0.5}}>✓ WORKOUT COMPLETE</div>
+          <div style={{fontSize:11,color:C.muted,marginTop:3}}>Great work today. Rest and recover.</div>
+        </div>
+      ) : (
+        <button onClick={onStart} style={{
+          width:"100%", padding:"16px",
+          background: isToday ? C.accent : "transparent",
+          border: isToday ? "none" : `1.5px solid ${C.border}`,
+          borderRadius:14, fontFamily:F, fontSize:14, fontWeight:800,
+          color: isToday ? "#0a0a0a" : C.muted,
+          cursor:"pointer", letterSpacing:1,
+        }}>
+          {isToday ? "START WORKOUT" : "VIEW WORKOUT"}
+        </button>
+      )}
     </div>
   );
 }
