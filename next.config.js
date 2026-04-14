@@ -1,8 +1,12 @@
 const withPWA = require("next-pwa")({
   dest: "public",
-  disable: true, // Disabled — service worker was causing stale cache / slow loads
-  register: false,
+  disable: false,
+  register: true,
   skipWaiting: true,
+  reloadOnOnline: true,
+  cacheOnFrontEndNav: true,
+  runtimeCaching: [],
+  buildExcludes: [/middleware-manifest\.json$/],
 });
 
 /** @type {import('next').NextConfig} */
