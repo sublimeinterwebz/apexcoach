@@ -62,7 +62,7 @@ export default function Dashboard() {
             <div style={{ fontSize:10, color:"#00ff80", letterSpacing:3, fontWeight:600, marginBottom:2 }}>APEXCOACH</div>
             <div style={{ fontFamily:"'Bebas Neue'", fontSize:24, letterSpacing:1, lineHeight:1 }}>{`Good Morning, ${firstName}`}</div>
           </div>
-          <div style={{ width:38, height:38, borderRadius:"50%", background:"linear-gradient(135deg,#00ff80,#00aa55)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#000" }}>{userInitial}</div>
+          <button onClick={() => router.push("/profile")} style={{ width:38, height:38, borderRadius:"50%", background:"linear-gradient(135deg,#00ff80,#00aa55)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#000", border:"none", cursor:"pointer" }}>{userInitial}</button>
         </div>
 
         {/* Week label */}
