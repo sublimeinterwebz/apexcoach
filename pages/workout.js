@@ -431,45 +431,6 @@ function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, el
   );
 }
 
-            })}
-          </div>
-        </>
-      )}
-      <div style={{padding:"12px 20px 30px",position:"relative",zIndex:1}}>
-        <div style={{display:"flex",gap:10}}>
-          {exIdx>0&&<button onClick={onBack} style={{padding:"14px 18px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>Back</button>}
-          <button onClick={allDone?onNext:undefined} style={{flex:1,padding:"15px",background:allDone?C.accent:C.bgCard,border:`1.5px solid ${allDone?C.accent:C.border}`,borderRadius:14,color:allDone?"#0a0a0a":C.dim,fontSize:14,fontWeight:800,cursor:allDone?"pointer":"default",fontFamily:F,transition:"all 0.2s"}}>
-            {allDone
-              ? (isLast ? "FINISH WORKOUT" : "NEXT EXERCISE")
-              : isSimple ? "Mark as done to continue" : `Complete all ${ex.sets} sets`}
-          </button>
-        </div>
-      </div>
-      {timer && (
-        <div style={{position:"absolute",inset:0,background:"rgba(17,18,20,0.95)",backdropFilter:"blur(20px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",zIndex:20}}>
-          <div style={{fontSize:10,color:C.accent,letterSpacing:3,fontWeight:700,marginBottom:16}}>REST TIMER</div>
-          <div style={{position:"relative",width:180,height:180,marginBottom:28}}>
-            <svg width="180" height="180" style={{transform:"rotate(-90deg)",position:"absolute"}}>
-              <circle cx="90" cy="90" r="80" fill="none" stroke={C.border} strokeWidth="6"/>
-              <circle cx="90" cy="90" r="80" fill="none" stroke={C.accent} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${2*Math.PI*80}`} strokeDashoffset={`${2*Math.PI*80*(1-timerPct/100)}`} style={{transition:"stroke-dashoffset 1s linear"}}/>
-            </svg>
-            <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-              <div style={{fontSize:56,fontWeight:900,color:C.white,letterSpacing:-2,lineHeight:1}}>{fmtTime(timer.seconds)}</div>
-              <div style={{fontSize:10,color:C.muted,letterSpacing:2,marginTop:4}}>SECONDS</div>
-            </div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24}}>
-            <button onClick={()=>adjustTimer(-20)} style={{width:56,height:56,borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.text,fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:F}}>-20</button>
-            <div style={{fontSize:9,color:C.dim,letterSpacing:2}}>ADJUST</div>
-            <button onClick={()=>adjustTimer(20)} style={{width:56,height:56,borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.text,fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:F}}>+20</button>
-          </div>
-          <button onClick={skipTimer} style={{padding:"12px 36px",borderRadius:14,background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>SKIP REST</button>
-        </div>
-      )}
-    </>
-  );
-}
-
 // ── Finished Screen ────────────────────────────────────
 function FinishedScreen({ allSets, elapsed, fmtTime, onFeedback }) {
   const totalSets = allSets.reduce((a,s)=>a+s.filter(x=>x.done).length, 0);
