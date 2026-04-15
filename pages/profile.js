@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import { Screen, Label, RadioCard, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
+import { useAuth } from "../lib/AuthContext";
 import { saveUserProfile } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
@@ -48,7 +49,8 @@ function StepTitle({ title, sub }) {
 
 export default function Profile() {
   const router = useRouter();
-  const { user, profile, setProfile, loading } = useRequireAuth();
+  const { setProfile } = useAuth();                      // useRequireAuth doesn't expose setProfile
+  const { user, profile, loading } = useRequireAuth();
   const [step,        setStep]        = useState(0);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
