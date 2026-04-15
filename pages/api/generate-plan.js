@@ -3,11 +3,12 @@ export const config = { maxDuration: 60 };
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 function buildPrompt(p) {
-  const days      = parseInt(p.trainingDays) || 4;
-  const injuries  = (p.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
-  const equip     = (p.equipment || []).join(", ") || "bodyweight only";
-  const diet      = (p.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "no restrictions";
-  const loc       = (p.workoutLocation || []).join("/") || "gym";
+  const days          = parseInt(p.trainingDays) || 4;
+  const injuries      = (p.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
+  const equip         = p.equipmentStr || (p.equipment || []).join(", ") || "standard gym equipment";
+  const diet          = (p.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "no restrictions";
+  const loc           = (p.workoutLocation || []).join("/") || "gym";
+  const specificDays  = (p.trainingDaysOfWeek || []).join(", ") || null;
   const goal      = { fat_loss:"fat loss (300kcal deficit)", muscle_gain:"muscle gain (300kcal surplus)", maintain:"maintenance" }[p.primaryGoal] || "maintenance";
 
   // Previous week context
@@ -22,7 +23,7 @@ User Profile:
 - Age: ${p.age}yr, Gender: ${p.gender}, Weight: ${p.weight}${p.weightUnit || "kg"}, Height: ${p.height}${p.heightUnit || "cm"}
 - Fitness Level: ${p.fitnessLevel || "beginner"}
 - Goal: ${goal}
-- Training Days: ${days} days/week
+- Training Days: ${days} days/week${specificDays ? ' on ' + specificDays : ''}
 - Location: ${loc}
 - Available Equipment: ${equip}
 - Injuries / Limitations: ${injuries}
@@ -43,7 +44,7 @@ Design a 7-day plan that mimics a real coach:
 
 1. Weekly Structure:
 - Exactly 7 days total
-- Exactly ${days} training days and ${7 - days} rest/recovery days
+- Exactly ${days} training days and ${7 - days} rest/recovery days${specificDays ? '. IMPORTANT: Schedule workouts ONLY on these specific days: ' + specificDays + '. All other days must be rest/recovery.' : ''}
 - Mix training styles if relevant (strength, hypertrophy, conditioning, mobility)
 - Place rest days strategically based on the training split
 

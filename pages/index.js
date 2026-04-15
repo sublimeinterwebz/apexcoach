@@ -1,35 +1,57 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Screen, btnStyle, inputStyle, Label, Chip, RadioCard, C } from "../components/shared";
+import { Screen, btnStyle, inputStyle, Label, RadioCard, C } from "../components/shared";
 import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile, saveWeekPlan } from "../lib/firebase";
 import { useAuth } from "../lib/AuthContext";
 
 const F = "'Lexend', sans-serif";
-const STEPS = ["Profile","Health","Lifestyle","Goals"];
-const EQUIPMENT_OPTIONS = ["Barbell & Plates","Dumbbells","Cables/Pulleys","Smith Machine","Pull-up Bar","Resistance Bands","Kettlebells","Bench","No Equipment"];
-const DIETARY_OPTIONS   = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
-const INJURY_OPTIONS    = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
+const STEPS = ["Profile", "Health", "Lifestyle", "Goals"];
+
+const DIETARY_OPTIONS = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
+const INJURY_OPTIONS  = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
+const WEEK_DAYS       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+// Gym equipment categories (broad — covers most commercial gyms)
+const GYM_CATEGORIES  = ["Full Commercial Gym","Free Weights (Barbells & Dumbbells)","Cable & Pulley Machines","Resistance Machines","Cardio Equipment","Racks & Benches","Smith Machine","Pull-up / Dip Station"];
+// Home equipment options (granular)
+const HOME_EQUIPMENT  = ["Dumbbells","Resistance Bands","Pull-up Bar","Kettlebells","Barbell & Plates","Bench","Yoga Mat / Floor Space","No Equipment"];
+
+// Adjustment request chips
+const ADJUST_CHIPS = [
+  "Add more warm-up drills",
+  "Include a specific machine",
+  "Reduce overall volume",
+  "Increase intensity",
+  "Swap an exercise",
+  "Change a rest day",
+  "Adjust nutrition macros",
+  "Add more core work",
+];
 
 function buildForm() {
   return {
     age:"", gender:"", weight:70, weightUnit:"kg", height:170, heightUnit:"cm", bodyFat:"",
     fitnessLevel:"", injuries:[], medicalConditions:"",
-    jobType:"", sleepHours:"", stressLevel:"", trainingDays:"",
-    primaryGoal:"", targetWeight:"", workoutLocation:[], equipment:[], dietaryPrefs:[],
+    jobType:"", sleepHours:"", stressLevel:"",
+    trainingDays:"", trainingDaysOfWeek:[],
+    primaryGoal:"", targetWeight:"",
+    workoutLocation:[], gymEquipment:[], homeEquipment:[], equipmentOther:"",
+    dietaryPrefs:[],
   };
 }
 
 export default function Home() {
-  const router = useRouter();
+  const router  = useRouter();
   const { user, profile, loading, setProfile } = useAuth();
-  const [screen,      setScreen]      = useState("welcome");
-  const [step,        setStep]        = useState(0);
-  const [authMode,    setAuthMode]    = useState(null);
-  const [email,       setEmail]       = useState("");
-  const [password,    setPassword]    = useState("");
-  const [authErr,     setAuthErr]     = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [form,        setForm]        = useState(buildForm());
+  const [screen,       setScreen]       = useState("welcome");
+  const [step,         setStep]         = useState(0);
+  const [authMode,     setAuthMode]     = useState(null);
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
+  const [authErr,      setAuthErr]      = useState("");
+  const [authLoading,  setAuthLoading]  = useState(false);
+  const [form,         setForm]         = useState(buildForm());
+  const [generatedPlan,setGeneratedPlan]= useState(null);
 
   useEffect(() => {
     if (loading) return;
@@ -64,20 +86,20 @@ export default function Home() {
     }
   };
 
-  // ── WELCOME ───────────────────────────────────────────
+  // ── WELCOME ─────────────────────────────────────────────
   if (screen === "welcome") return (
     <Screen style={{ justifyContent:"space-between" }}>
-      <div style={{ padding:"60px 24px 0", position:"relative", zIndex:1 }}>
+      <div style={{ padding:"60px 24px 0", zIndex:1, position:"relative" }}>
         <div style={{ fontSize:11, color:C.muted, letterSpacing:3, fontWeight:600, marginBottom:12 }}>YOUR AI TRAINER</div>
         <div style={{ fontSize:52, fontWeight:900, color:C.white, lineHeight:1, letterSpacing:-1, marginBottom:8 }}>
           BUILD YOUR<br /><span style={{ color:C.accent }}>BEST SELF</span>
         </div>
-        <div style={{ fontSize:14, fontWeight:400, color:C.muted, lineHeight:1.7, marginTop:16, maxWidth:300 }}>
+        <div style={{ fontSize:14, color:C.muted, lineHeight:1.7, marginTop:16, maxWidth:300 }}>
           AI-powered workout and nutrition plans tailored to your body, goals, and life.
         </div>
       </div>
 
-      <div style={{ padding:"0 24px 52px", position:"relative", zIndex:1 }}>
+      <div style={{ padding:"0 24px 52px", zIndex:1, position:"relative" }}>
         {authLoading ? (
           <div style={{ textAlign:"center", padding:"20px 0" }}>
             <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -101,7 +123,7 @@ export default function Home() {
               {authMode === "signup" ? "CREATE ACCOUNT" : "SIGN IN"}
             </div>
             <input placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} type="email" />
-            <input placeholder="Password"      value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} type="password" />
+            <input placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} type="password" />
             {authErr && <div style={{ fontSize:12, color:"#ff5e5e" }}>{authErr}</div>}
             <button onClick={handleEmailAuth} disabled={!email||!password} style={{ ...btnStyle("primary"), opacity:(!email||!password)?0.4:1 }}>
               {authMode === "signup" ? "Create Account" : "Sign In"}
@@ -113,12 +135,38 @@ export default function Home() {
     </Screen>
   );
 
-  // ── GENERATING ───────────────────────────────────────
+  // ── GENERATING ───────────────────────────────────────────
   if (screen === "generating") return (
-    <GeneratingScreen user={user} form={form} setProfile={setProfile} onDone={() => router.replace("/dashboard")} />
+    <GeneratingScreen
+      user={user} form={form} setProfile={setProfile}
+      onReview={(plan) => { setGeneratedPlan(plan); setScreen("review"); }}
+      onDone={() => router.replace("/dashboard")}
+    />
   );
 
-  // ── ONBOARDING ───────────────────────────────────────
+  // ── PLAN REVIEW ──────────────────────────────────────────
+  if (screen === "review") return (
+    <PlanReviewScreen
+      plan={generatedPlan}
+      profile={form}
+      user={user}
+      setProfile={setProfile}
+      onPlanUpdate={(updated) => setGeneratedPlan(updated)}
+      onCommit={async () => {
+        const profileToSave = { ...form, onboardingComplete:true, currentWeek:1 };
+        if (user) {
+          await saveUserProfile(user.uid, profileToSave);
+          if (generatedPlan) await saveWeekPlan(user.uid, 1, generatedPlan);
+        }
+        const toCache = { ...profileToSave, plan:generatedPlan };
+        try { localStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(toCache)); } catch {}
+        setProfile(toCache);
+        router.replace("/dashboard");
+      }}
+    />
+  );
+
+  // ── ONBOARDING ───────────────────────────────────────────
   return (
     <Screen>
       <div style={{ padding:"48px 20px 0", position:"relative", zIndex:1 }}>
@@ -126,11 +174,9 @@ export default function Home() {
           <span style={{ fontSize:13, fontWeight:800, color:C.accent, letterSpacing:2, fontStyle:"italic" }}>APEXCOACH</span>
           <span style={{ fontSize:12, color:C.muted, fontWeight:500 }}>Step {step+1} of {STEPS.length}</span>
         </div>
-        {/* Progress */}
         <div style={{ height:3, background:C.bgCard, borderRadius:4, overflow:"hidden", marginBottom:14 }}>
           <div style={{ height:"100%", width:`${progress}%`, background:C.accent, borderRadius:4, transition:"width 0.4s ease" }}/>
         </div>
-        {/* Step pills */}
         <div style={{ display:"flex", gap:6, marginBottom:24 }}>
           {STEPS.map((s,i) => (
             <div key={s} style={{ fontSize:9, letterSpacing:1.5, fontWeight:700, padding:"4px 12px", borderRadius:20, background:i===step?C.accentDim:"transparent", color:i===step?C.accent:i<step?C.muted:C.dim, border:`1.5px solid ${i===step?C.accent:i<step?C.borderMid:C.border}`, transition:"all 0.3s" }}>{s.toUpperCase()}</div>
@@ -138,10 +184,10 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{ flex:1, padding:"0 20px", position:"relative", zIndex:1, overflowY:"auto" }}>
-        {step===0 && <StepProfile  form={form} setField={setField} toggleArr={toggleArr} />}
+      <div style={{ flex:1, padding:"0 20px", overflowY:"auto", position:"relative", zIndex:1 }}>
+        {step===0 && <StepProfile  form={form} setField={setField} />}
         {step===1 && <StepHealth   form={form} setField={setField} toggleArr={toggleArr} />}
-        {step===2 && <StepLifestyle form={form} setField={setField} />}
+        {step===2 && <StepLifestyle form={form} setField={setField} toggleArr={toggleArr} />}
         {step===3 && <StepGoals   form={form} setField={setField} toggleArr={toggleArr} />}
       </div>
 
@@ -155,37 +201,58 @@ export default function Home() {
   );
 }
 
-// ── Generating Screen ──────────────────────────────────
-function GeneratingScreen({ user, form, setProfile, onDone }) {
+// ── Generating Screen ────────────────────────────────────
+function GeneratingScreen({ user, form, setProfile, onReview, onDone }) {
   const [status,   setStatus]   = useState("saving");
-  const [step,     setStep]     = useState("Saving your profile...");
+  const [stepMsg,  setStepMsg]  = useState("Saving your profile...");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     async function run() {
-      const newProfile = { displayName:user?.displayName||"", email:user?.email||"", ...form, onboardingComplete:true, currentWeek:1 };
+      // Build equipment string for Gemini
+      const hasGym  = form.workoutLocation?.includes("Gym") || form.workoutLocation?.includes("Both");
+      const hasHome = form.workoutLocation?.includes("Home") || form.workoutLocation?.includes("Both");
+      const equipParts = [];
+      if (hasGym && form.gymEquipment?.length) equipParts.push(...form.gymEquipment);
+      if (hasHome && form.homeEquipment?.length) equipParts.push(...form.homeEquipment);
+      if (form.equipmentOther) equipParts.push(form.equipmentOther);
+      const equipStr = equipParts.length ? equipParts.join(", ") : "standard gym equipment";
+
+      const profileToSave = {
+        displayName: user?.displayName || "",
+        email: user?.email || "",
+        ...form,
+        equipment: equipParts,
+        equipmentStr: equipStr,
+      };
+
       try {
-        const { saveUserProfile, saveWeekPlan } = await import("../lib/firebase");
-        if (user) await saveUserProfile(user.uid, newProfile);
-        setStep("Generating your personalized plan with AI...");
+        if (user) await saveUserProfile(user.uid, profileToSave).catch(()=>{});
+        setStepMsg("Building your AI-powered plan...");
         let plan = null;
         try {
-          const r = await fetch("/api/generate-plan", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(newProfile) });
+          const r = await fetch("/api/generate-plan", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({
+              ...profileToSave,
+              equipment: equipStr,
+              trainingDaysOfWeek: form.trainingDaysOfWeek,
+            }),
+          });
           const data = await r.json();
-          if (!data.error) { plan = data; if (user) await saveWeekPlan(user.uid, 1, data); }
-        } catch(planErr) { setErrorMsg(planErr.message); }
-        const toCache = { ...newProfile, plan };
-        try { localStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify(toCache)); } catch {}
-        setProfile(toCache);
+          if (!data.error) plan = data;
+          else setErrorMsg(data.error);
+        } catch(e) { setErrorMsg(e.message); }
         setStatus("ready");
+        onReview(plan);
       } catch(e) {
         setErrorMsg(e.message);
-        try { localStorage.setItem(`apex_profile_${user?.uid}`, JSON.stringify({...form, onboardingComplete:true})); } catch {}
-        setProfile({...form, onboardingComplete:true, plan:null});
         setStatus("ready");
+        onDone();
       }
     }
-    const t = setTimeout(run, 600);
+    const t = setTimeout(run, 400);
     return () => clearTimeout(t);
   }, []);
 
@@ -200,22 +267,196 @@ function GeneratingScreen({ user, form, setProfile, onDone }) {
             <div style={{ width:32, height:32, borderRadius:"50%", border:`2px solid ${C.border}`, borderTopColor:C.accent, animation:"spin 0.9s linear infinite" }}/>
           )}
         </div>
-        <div style={{ fontSize:28, fontWeight:900, color:C.white, letterSpacing:-0.5, marginBottom:10 }}>
-          {status==="ready" ? "PLAN READY" : "BUILDING YOUR PLAN"}
+        <div style={{ fontSize:24, fontWeight:900, color:C.white, letterSpacing:-0.5, marginBottom:8 }}>
+          {status==="ready" ? "YOUR PLAN IS READY" : "BUILDING YOUR PLAN"}
         </div>
-        <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:errorMsg?16:0 }}>{status==="ready" ? (errorMsg?"Profile saved. Generate your plan from dashboard.":"Your personalized plan is ready.") : step}</div>
-        {errorMsg && status==="ready" && (
-          <div style={{ fontSize:11, color:"#ff5e8a", background:"rgba(255,94,138,0.08)", border:"1px solid rgba(255,94,138,0.2)", borderRadius:10, padding:"10px 14px", textAlign:"left", marginTop:12, marginBottom:12 }}>{errorMsg}</div>
-        )}
-        <button onClick={status==="ready"?onDone:undefined} style={{ ...btnStyle("primary"), marginTop:24, opacity:status==="ready"?1:0.35, cursor:status==="ready"?"pointer":"default" }}>
-          {status==="ready" ? "View My Plan" : "Please wait..."}
-        </button>
+        <div style={{ fontSize:13, color:C.muted, lineHeight:1.7 }}>{stepMsg}</div>
       </div>
     </Screen>
   );
 }
 
-// ── Step components ────────────────────────────────────
+// ── Plan Review Screen ───────────────────────────────────
+function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCommit }) {
+  const [adjusting,    setAdjusting]    = useState(false);
+  const [adjustInput,  setAdjustInput]  = useState("");
+  const [selectedChip, setSelectedChip] = useState("");
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState("");
+  const [committing,   setCommitting]   = useState(false);
+  const [adjustCount,  setAdjustCount]  = useState(0);
+
+  const weekPlan = plan?.weekPlan || [];
+  const macros   = plan?.nutrition?.macros || {};
+  const calories  = plan?.nutrition?.dailyCalories;
+
+  const handleAdjust = async () => {
+    const request = selectedChip ? `${selectedChip}${adjustInput ? ": " + adjustInput : ""}` : adjustInput;
+    if (!request.trim() || !plan) return;
+    setLoading(true); setError("");
+    try {
+      const r = await fetch("/api/adjust-plan", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ plan, request, profile }),
+      });
+      const updated = await r.json();
+      if (updated.error) { setError(updated.error); }
+      else { onPlanUpdate(updated); setAdjustCount(n => n+1); setAdjusting(false); setSelectedChip(""); setAdjustInput(""); }
+    } catch(e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  const handleCommit = async () => {
+    setCommitting(true);
+    await onCommit();
+  };
+
+  return (
+    <Screen>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{ padding:"48px 20px 0", flexShrink:0 }}>
+        <div style={{ fontSize:11, color:C.accent, letterSpacing:3, fontWeight:600, marginBottom:6 }}>YOUR PLAN IS READY</div>
+        <div style={{ fontSize:26, fontWeight:900, color:C.white, letterSpacing:-0.5 }}>Review & Adjust</div>
+        <div style={{ fontSize:13, color:C.muted, marginTop:4 }}>
+          Review your plan before you commit. You can request changes.
+        </div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
+
+        {/* ── Nutrition Summary ── */}
+        {calories && (
+          <div style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px", marginBottom:12 }}>
+            <div style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700, marginBottom:12 }}>NUTRITION TARGETS</div>
+            <div style={{ display:"flex", gap:8 }}>
+              {[
+                {label:"KCAL", value:calories, color:C.accent},
+                {label:"PROTEIN", value:`${macros.protein}g`, color:"#00cfff"},
+                {label:"CARBS", value:`${macros.carbs}g`, color:"#ffaa00"},
+                {label:"FAT", value:`${macros.fat||macros.fats}g`, color:"#ff5e8a"},
+              ].map(m => (
+                <div key={m.label} style={{ flex:1, background:C.bgDeep, borderRadius:10, padding:"10px 4px", textAlign:"center" }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:m.color }}>{m.value}</div>
+                  <div style={{ fontSize:8, color:C.dim, letterSpacing:1, fontWeight:600, marginTop:2 }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Week Plan Summary ── */}
+        <div style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px", marginBottom:12 }}>
+          <div style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700, marginBottom:12 }}>WEEKLY SCHEDULE</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {weekPlan.map((day, i) => {
+              const isRest = day.type==="rest"||day.type==="recovery";
+              return (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", background:C.bgDeep, borderRadius:12 }}>
+                  <div style={{ width:36, textAlign:"center" }}>
+                    <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>{day.dayName||`D${i+1}`}</div>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:isRest?C.dim:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                      {isRest ? "Rest Day" : (day.focus||day.sessionLabel||"Workout")}
+                    </div>
+                    {!isRest && day.muscleGroups && (
+                      <div style={{ fontSize:11, color:C.dim, marginTop:1 }}>{day.muscleGroups}</div>
+                    )}
+                  </div>
+                  <div style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:20, background:isRest?C.bgCard:C.accentDim, border:`1px solid ${isRest?C.border:C.accentBorder}`, color:isRest?C.dim:C.accent, flexShrink:0 }}>
+                    {isRest ? "REST" : (day.type||"").toUpperCase()}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Coach Note ── */}
+        {plan?.coachNote && (
+          <div style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.accent}`, borderRadius:16, padding:"14px 16px", marginBottom:12 }}>
+            <div style={{ fontSize:10, color:C.accent, letterSpacing:2.5, fontWeight:700, marginBottom:8 }}>COACH NOTE</div>
+            <p style={{ fontSize:13, color:C.muted, lineHeight:1.65, margin:0 }}>{plan.coachNote}</p>
+          </div>
+        )}
+
+        {/* ── Adjustment Count Banner ── */}
+        {adjustCount > 0 && (
+          <div style={{ background:"rgba(196,255,0,0.06)", border:`1px solid ${C.accentBorder}`, borderRadius:12, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style={{ fontSize:12, color:C.accent, fontWeight:600 }}>{adjustCount} adjustment{adjustCount>1?"s":""} applied to your plan</span>
+          </div>
+        )}
+
+        {/* ── Adjust Panel ── */}
+        {adjusting ? (
+          <div style={{ background:C.bgCard, border:`1.5px solid ${C.border}`, borderRadius:16, padding:"16px" }}>
+            <div style={{ fontSize:10, color:C.muted, letterSpacing:2, fontWeight:700, marginBottom:12 }}>WHAT WOULD YOU LIKE TO CHANGE?</div>
+
+            {/* Quick chips */}
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap", marginBottom:12 }}>
+              {ADJUST_CHIPS.map(chip => (
+                <button key={chip} onClick={() => setSelectedChip(selectedChip===chip?"":chip)} style={{
+                  padding:"6px 13px", borderRadius:20, fontSize:12, fontWeight:500,
+                  background: selectedChip===chip ? C.accentDim : C.bgDeep,
+                  border: `1.5px solid ${selectedChip===chip ? C.accent : C.border}`,
+                  color: selectedChip===chip ? C.accent : C.muted,
+                  cursor:"pointer", fontFamily:F,
+                }}>
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Free-text */}
+            <textarea
+              value={adjustInput}
+              onChange={e => setAdjustInput(e.target.value)}
+              placeholder={selectedChip ? `Add details (optional)...` : "Describe your specific request, e.g. 'Include incline bench press in the push day'"}
+              style={{ ...inputStyle, minHeight:72, marginBottom:12, resize:"none" }}
+            />
+
+            {error && <div style={{ fontSize:11, color:"#ff5e5e", marginBottom:10 }}>{error}</div>}
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => { setAdjusting(false); setSelectedChip(""); setAdjustInput(""); setError(""); }} style={{ ...btnStyle("ghost"), flex:1 }}>Cancel</button>
+              <button onClick={handleAdjust} disabled={(!selectedChip&&!adjustInput.trim())||loading} style={{
+                ...btnStyle("primary"), flex:2,
+                opacity:(!selectedChip&&!adjustInput.trim())||loading ? 0.4 : 1,
+                cursor:(!selectedChip&&!adjustInput.trim())||loading ? "default" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              }}>
+                {loading && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#0a0a0a", animation:"spin 0.8s linear infinite" }}/>}
+                {loading ? "Adjusting..." : "Apply Change"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setAdjusting(true)} style={{ ...btnStyle("ghost"), width:"100%", marginBottom:0, justifyContent:"center", gap:8 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Request a Change
+          </button>
+        )}
+      </div>
+
+      {/* ── Commit Button ── */}
+      <div style={{ padding:"12px 20px 36px", flexShrink:0 }}>
+        <button onClick={handleCommit} disabled={committing} style={{ ...btnStyle("primary"), opacity:committing?0.6:1, cursor:committing?"default":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          {committing && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#0a0a0a", animation:"spin 0.8s linear infinite" }}/>}
+          {committing ? "Saving..." : "This looks great — let's go!"}
+        </button>
+        {!committing && (
+          <div style={{ fontSize:11, color:C.dim, textAlign:"center", marginTop:10, lineHeight:1.5 }}>
+            You can always adjust your plan from the Review tab later.
+          </div>
+        )}
+      </div>
+    </Screen>
+  );
+}
+
+// ── Step components ──────────────────────────────────────
 function StepTitle({ title, sub }) {
   return (
     <div style={{ marginBottom:20 }}>
@@ -233,7 +474,18 @@ function ChipBtn({ label, active, onClick }) {
   );
 }
 
-function StepProfile({ form, setField, toggleArr }) {
+function UnitToggle({ value, options, onChange }) {
+  return (
+    <div style={{ display:"flex", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden" }}>
+      {options.map(o => (
+        <button key={o} onClick={() => onChange(o)} style={{ padding:"5px 14px", fontSize:12, fontWeight:700, background:value===o?C.accentDim:"transparent", border:"none", color:value===o?C.accent:C.muted, cursor:"pointer", fontFamily:F }}>{o}</button>
+      ))}
+    </div>
+  );
+}
+
+// ── Step 0: Profile ──────────────────────────────────────
+function StepProfile({ form, setField }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <StepTitle title="Body Stats" sub="Help us understand your starting point" />
@@ -244,8 +496,8 @@ function StepProfile({ form, setField, toggleArr }) {
         </div>
         <div style={{ flex:1.5 }}>
           <Label>Gender</Label>
-          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-            {["Male","Female","Other"].map(g => <ChipBtn key={g} label={g} active={form.gender===g} onClick={() => setField("gender",g)} />)}
+          <div style={{ display:"flex", gap:6 }}>
+            {["Male","Female"].map(g => <ChipBtn key={g} label={g} active={form.gender===g} onClick={() => setField("gender",g)} />)}
           </div>
         </div>
       </div>
@@ -273,6 +525,7 @@ function StepProfile({ form, setField, toggleArr }) {
   );
 }
 
+// ── Step 1: Health ───────────────────────────────────────
 function StepHealth({ form, setField, toggleArr }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -280,7 +533,11 @@ function StepHealth({ form, setField, toggleArr }) {
       <div>
         <Label>Fitness Level</Label>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {[{value:"beginner",label:"Beginner",desc:"Less than 6 months"},{value:"intermediate",label:"Intermediate",desc:"6 months – 2 years"},{value:"advanced",label:"Advanced",desc:"2+ years training"}].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.fitnessLevel===o.value} onClick={v=>setField("fitnessLevel",v)} />)}
+          {[
+            {value:"beginner",     label:"Beginner",      desc:"Less than 6 months"},
+            {value:"intermediate", label:"Intermediate",   desc:"6 months – 2 years"},
+            {value:"advanced",     label:"Advanced",       desc:"2+ years training"},
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.fitnessLevel===o.value} onClick={v=>setField("fitnessLevel",v)} />)}
         </div>
       </div>
       <div>
@@ -297,82 +554,194 @@ function StepHealth({ form, setField, toggleArr }) {
   );
 }
 
-function StepLifestyle({ form, setField }) {
+// ── Step 2: Lifestyle ────────────────────────────────────
+function StepLifestyle({ form, setField, toggleArr }) {
+  const targetDays = parseInt(form.trainingDays) || 0;
+  const selectedCount = form.trainingDaysOfWeek.length;
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <StepTitle title="Lifestyle" sub="Your plan adapts to your daily life" />
+
       <div>
         <Label>Job Type</Label>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {[{value:"sedentary",label:"Sedentary",desc:"Desk job, mostly sitting"},{value:"light",label:"Lightly Active",desc:"On feet occasionally"},{value:"active",label:"Active",desc:"Physical job or always on feet"}].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.jobType===o.value} onClick={v=>setField("jobType",v)} />)}
+          {[
+            {value:"sedentary", label:"Sedentary",      desc:"Desk job, mostly sitting"},
+            {value:"light",     label:"Lightly Active",  desc:"On feet occasionally"},
+            {value:"active",    label:"Active",          desc:"Physical job or always on feet"},
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.jobType===o.value} onClick={v=>setField("jobType",v)} />)}
         </div>
       </div>
+
       <div>
         <Label>Avg Sleep</Label>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {["<5h","5–6h","6–7h","7–8h","8h+"].map(v => <ChipBtn key={v} label={v} active={form.sleepHours===v} onClick={() => setField("sleepHours",v)} />)}
         </div>
       </div>
+
       <div>
         <Label>Stress Level</Label>
-        <div style={{ display:"flex", gap:8 }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           {["Low","Medium","High","Very High"].map(v => <ChipBtn key={v} label={v} active={form.stressLevel===v} onClick={() => setField("stressLevel",v)} />)}
         </div>
       </div>
+
+      {/* ── How many training days ── */}
       <div>
         <Label>Training Days per Week</Label>
         <div style={{ display:"flex", gap:8 }}>
           {["2","3","4","5","6"].map(v => (
-            <button key={v} onClick={() => setField("trainingDays",v)} style={{ width:48, height:48, borderRadius:12, background:form.trainingDays===v?C.accent:C.bgCard, border:`1.5px solid ${form.trainingDays===v?C.accent:C.border}`, color:form.trainingDays===v?"#0a0a0a":C.muted, fontWeight:800, fontSize:16, cursor:"pointer", fontFamily:F }}>{v}</button>
+            <button key={v} onClick={() => {
+              setField("trainingDays", v);
+              // Reset day selection if count changes
+              if (form.trainingDaysOfWeek.length > parseInt(v)) {
+                setField("trainingDaysOfWeek", form.trainingDaysOfWeek.slice(0, parseInt(v)));
+              }
+            }} style={{ width:50, height:50, borderRadius:14, background:form.trainingDays===v?C.accent:C.bgCard, border:`1.5px solid ${form.trainingDays===v?C.accent:C.border}`, color:form.trainingDays===v?"#0a0a0a":C.muted, fontWeight:800, fontSize:17, cursor:"pointer", fontFamily:F }}>
+              {v}
+            </button>
           ))}
         </div>
       </div>
+
+      {/* ── Which specific days ── */}
+      {form.trainingDays && (
+        <div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <Label>Which days work for you?</Label>
+            <span style={{ fontSize:11, color:selectedCount===targetDays?C.accent:C.muted, fontWeight:600 }}>
+              {selectedCount}/{targetDays} selected
+            </span>
+          </div>
+          <div style={{ display:"flex", gap:7 }}>
+            {WEEK_DAYS.map(day => {
+              const isActive = form.trainingDaysOfWeek.includes(day);
+              const isDisabled = !isActive && selectedCount >= targetDays;
+              return (
+                <button
+                  key={day}
+                  onClick={() => !isDisabled && toggleArr("trainingDaysOfWeek", day)}
+                  style={{
+                    flex:1, padding:"10px 0", borderRadius:12,
+                    display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                    background: isActive ? C.accent : C.bgCard,
+                    border: `1.5px solid ${isActive ? C.accent : isDisabled ? C.border : C.borderMid}`,
+                    color: isActive ? "#0a0a0a" : isDisabled ? C.dim : C.muted,
+                    cursor: isDisabled ? "default" : "pointer",
+                    opacity: isDisabled ? 0.4 : 1,
+                    transition: "all 0.18s",
+                    fontFamily: F,
+                  }}
+                >
+                  <span style={{ fontSize:9, fontWeight:700, letterSpacing:0.5 }}>{day.toUpperCase()}</span>
+                </button>
+              );
+            })}
+          </div>
+          {selectedCount === targetDays && (
+            <div style={{ fontSize:11, color:C.accent, marginTop:8, fontWeight:500 }}>
+              ✓ Your training schedule is set
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
+// ── Step 3: Goals ────────────────────────────────────────
 function StepGoals({ form, setField, toggleArr }) {
+  const hasGym  = form.workoutLocation.includes("Gym")  || form.workoutLocation.includes("Both");
+  const hasHome = form.workoutLocation.includes("Home") || form.workoutLocation.includes("Both");
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-      <StepTitle title="Goals" sub="Tell us what you are training for" />
+      <StepTitle title="Goals & Setup" sub="Tell us what you are training for" />
+
       <div>
         <Label>Primary Goal</Label>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {[{value:"fat_loss",label:"Fat Loss",desc:"Burn fat, get leaner"},{value:"muscle_gain",label:"Muscle Gain",desc:"Build size and strength"},{value:"maintain",label:"Maintain & Tone",desc:"Stay fit, improve definition"}].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v=>setField("primaryGoal",v)} />)}
+          {[
+            {value:"fat_loss",    label:"Fat Loss",       desc:"Burn fat, get leaner"},
+            {value:"muscle_gain", label:"Muscle Gain",    desc:"Build size and strength"},
+            {value:"maintain",    label:"Maintain & Tone",desc:"Stay fit, improve definition"},
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v=>setField("primaryGoal",v)} />)}
         </div>
       </div>
+
       <div>
         <Label>Target Weight <span style={{ color:C.dim, fontWeight:400 }}>(optional)</span></Label>
         <input style={inputStyle} placeholder="e.g. 80 kg" value={form.targetWeight} onChange={e => setField("targetWeight",e.target.value)} />
       </div>
+
+      {/* ── Location (tiered equipment entry point) ── */}
       <div>
-        <Label>Workout Location</Label>
+        <Label>Where do you train?</Label>
         <div style={{ display:"flex", gap:8 }}>
-          {["Gym","Home","Both"].map(v => <ChipBtn key={v} label={v} active={form.workoutLocation.includes(v)} onClick={() => toggleArr("workoutLocation",v)} />)}
+          {["Gym","Home","Both"].map(v => (
+            <button key={v} onClick={() => {
+              // Toggle location
+              const current = form.workoutLocation;
+              let next;
+              if (v === "Both") {
+                next = current.includes("Both") ? [] : ["Both"];
+              } else {
+                const without = current.filter(x => x !== "Both");
+                next = without.includes(v) ? without.filter(x=>x!==v) : [...without, v];
+              }
+              setField("workoutLocation", next);
+            }} style={{ flex:1, padding:"12px 8px", borderRadius:14, background:form.workoutLocation.includes(v)?C.accentDim:C.bgCard, border:`1.5px solid ${form.workoutLocation.includes(v)?C.accent:C.border}`, color:form.workoutLocation.includes(v)?C.accent:C.muted, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:F }}>
+              {v}
+            </button>
+          ))}
         </div>
       </div>
-      <div>
-        <Label>Equipment Available</Label>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-          {EQUIPMENT_OPTIONS.map(v => <ChipBtn key={v} label={v} active={form.equipment.includes(v)} onClick={() => toggleArr("equipment",v)} />)}
+
+      {/* ── Gym equipment categories ── */}
+      {hasGym && (
+        <div>
+          <Label>What's available at your gym?</Label>
+          <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+            {GYM_CATEGORIES.map(v => (
+              <ChipBtn key={v} label={v} active={form.gymEquipment.includes(v)} onClick={() => toggleArr("gymEquipment", v)} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Home equipment ── */}
+      {hasHome && (
+        <div>
+          <Label>Home equipment available</Label>
+          <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+            {HOME_EQUIPMENT.map(v => (
+              <ChipBtn key={v} label={v} active={form.homeEquipment.includes(v)} onClick={() => toggleArr("homeEquipment", v)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Other equipment (free text) ── */}
+      {(hasGym || hasHome) && (
+        <div>
+          <Label>Anything else? <span style={{ color:C.dim, fontWeight:400 }}>(optional)</span></Label>
+          <input
+            style={inputStyle}
+            placeholder="e.g. cable chest fly machine, TRX straps, battle ropes..."
+            value={form.equipmentOther}
+            onChange={e => setField("equipmentOther", e.target.value)}
+          />
+        </div>
+      )}
+
       <div>
         <Label>Dietary Preferences</Label>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           {DIETARY_OPTIONS.map(v => <ChipBtn key={v} label={v} active={form.dietaryPrefs.includes(v)} onClick={() => toggleArr("dietaryPrefs",v)} />)}
         </div>
       </div>
-    </div>
-  );
-}
-
-function UnitToggle({ value, options, onChange }) {
-  return (
-    <div style={{ display:"flex", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden" }}>
-      {options.map(o => (
-        <button key={o} onClick={() => onChange(o)} style={{ padding:"5px 14px", fontSize:12, fontWeight:700, background:value===o?C.accentDim:"transparent", border:"none", color:value===o?C.accent:C.muted, cursor:"pointer", fontFamily:F }}>{o}</button>
-      ))}
     </div>
   );
 }
