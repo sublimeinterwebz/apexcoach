@@ -82,7 +82,10 @@ export default function Dashboard() {
     ? Object.values(dayData.blocks).flat().filter(e => !e.isHeader).length
     : (dayData?.exercises?.length || 0);
 
-  const mainCount = dayData?.blocks?.main?.length || dayData?.exercises?.length || 0;
+  // Count all exercises across all blocks (not just main)
+  const mainCount = dayData?.blocks
+    ? Object.values(dayData.blocks).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
+    : (dayData?.exercises?.length || 0);
 
   return (
     <Screen>
@@ -230,7 +233,7 @@ function WorkoutCard({ dayData, mainCount, calories, selectedDay, completedToday
         {mainCount > 0 && (
           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2"><path d="M6.5 6.5H5C4.17 6.5 3.5 7.17 3.5 8V10C3.5 10.83 4.17 11.5 5 11.5H6.5"/><path d="M17.5 6.5H19C19.83 6.5 20.5 7.17 20.5 8V10C20.5 10.83 19.83 11.5 19 11.5H17.5"/><line x1="6.5" y1="6.5" x2="6.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="17.5" y2="17.5"/><line x1="6.5" y1="12" x2="17.5" y2="12"/><path d="M6.5 17.5H5C4.17 17.5 3.5 16.83 3.5 16V14C3.5 13.17 4.17 12.5 5 12.5H6.5"/><path d="M17.5 17.5H19C19.83 17.5 20.5 16.83 20.5 16V14C20.5 13.17 19.83 12.5 19 12.5H17.5"/></svg>
-            <span style={{ fontSize:13, color:C.muted, fontWeight:500 }}>{mainCount} MOVES</span>
+            <span style={{ fontSize:13, color:C.muted, fontWeight:500 }}>{mainCount} EXERCISES</span>
           </div>
         )}
       </div>

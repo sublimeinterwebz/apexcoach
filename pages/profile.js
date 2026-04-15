@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { Screen, Label, RadioCard, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { useAuth } from "../lib/AuthContext";
-import { saveUserProfile } from "../lib/firebase";
+import { saveUserProfile, resetUserAccount } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
@@ -13,6 +13,17 @@ const INJURY_OPTIONS  = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wri
 const WEEK_DAYS       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const GYM_CATEGORIES  = ["Full Commercial Gym","Free Weights (Barbells & Dumbbells)","Cable & Pulley Machines","Resistance Machines","Cardio Equipment","Racks & Benches","Smith Machine","Pull-up / Dip Station"];
 const HOME_EQUIPMENT  = ["Dumbbells","Resistance Bands","Pull-up Bar","Kettlebells","Barbell & Plates","Bench","Yoga Mat / Floor Space","No Equipment"];
+
+const ADJUST_CHIPS = [
+  "Add more warm-up drills",
+  "Include a specific machine",
+  "Reduce overall volume",
+  "Increase intensity",
+  "Swap an exercise",
+  "Change a rest day",
+  "Adjust nutrition macros",
+  "Add more core work",
+];
 
 const inputStyle = {
   width:"100%", padding:"14px 16px", borderRadius:12,
@@ -54,9 +65,12 @@ export default function Profile() {
   const [step,        setStep]        = useState(0);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
-  const [showRegen,   setShowRegen]   = useState(false);
-  const [regening,    setRegening]    = useState(false);
-  const [regenError,  setRegenError]  = useState("");
+  const [showRegen,     setShowRegen]     = useState(false);
+  const [regening,      setRegening]      = useState(false);
+  const [regenError,    setRegenError]    = useState("");
+  const [reviewPlan,    setReviewPlan]    = useState(null);   // plan to review after regen
+  const [confirmReset,  setConfirmReset]  = useState(false);  // reset account confirm
+  const [resetting,     setResetting]     = useState(false);
 
   // ALL hooks must be before any early return (Rules of Hooks)
   const [form, setFormState] = useState({
@@ -145,7 +159,6 @@ export default function Profile() {
       setProfile(updated);
       try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(updated)); } catch {}
       setSaving(false);
-      // Now regenerate
       setRegening(true);
       const r = await fetch("/api/generate-plan", {
         method:"POST", headers:{"Content-Type":"application/json"},
@@ -153,13 +166,19 @@ export default function Profile() {
       });
       const newPlan = await r.json();
       if (newPlan.error) { setRegenError(newPlan.error); setRegening(false); return; }
-      const { saveWeekPlan } = await import("../lib/firebase");
-      await saveWeekPlan(user.uid, updated.currentWeek || 1, newPlan);
-      const withPlan = { ...updated, plan: newPlan };
-      setProfile(withPlan);
-      try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(withPlan)); } catch {}
-      router.push("/dashboard");
+      setRegening(false);
+      setReviewPlan({ plan: newPlan, profile: updated }); // show review screen
     } catch(e) { setRegenError(e.message); setSaving(false); setRegening(false); }
+  };
+
+  const handleResetAccount = async () => {
+    setResetting(true);
+    try {
+      await resetUserAccount(user.uid);
+      const { signOut } = await import("../lib/firebase");
+      await signOut();
+      router.replace("/");
+    } catch(e) { console.error(e); setResetting(false); setConfirmReset(false); }
   };
 
   const handleRegen = async () => {
@@ -187,6 +206,39 @@ export default function Profile() {
   };
 
 
+
+  // ── Plan review screen (after regen) ─────────────────
+  if (reviewPlan) return (
+    <ProfilePlanReview
+      plan={reviewPlan.plan}
+      profile={reviewPlan.profile}
+      user={user}
+      setProfile={setProfile}
+      onDone={() => router.push("/dashboard")}
+    />
+  );
+
+  // ── Reset confirm overlay ─────────────────────────────
+  if (confirmReset) return (
+    <Screen style={{alignItems:"center",justifyContent:"center"}}>
+      <div style={{padding:"0 28px",width:"100%",zIndex:1,textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:16}}>⚠️</div>
+        <div style={{fontSize:20,fontWeight:900,color:C.white,marginBottom:8}}>Reset Account?</div>
+        <div style={{fontSize:13,color:C.muted,lineHeight:1.65,marginBottom:28}}>
+          This will permanently delete your profile, plan, and all workout history. You will be signed out and taken back to the beginning.
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <button onClick={handleResetAccount} disabled={resetting} style={{width:"100%",padding:"15px",background:"#ff3b30",border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#fff",cursor:resetting?"default":"pointer",opacity:resetting?0.6:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {resetting&&<div style={{width:14,height:14,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#fff",animation:"spin 0.8s linear infinite"}}/>}
+            {resetting?"Resetting...":"Yes, delete everything"}
+          </button>
+          <button onClick={()=>setConfirmReset(false)} style={{width:"100%",padding:"14px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer"}}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Screen>
+  );
 
   return (
     <Screen style={{overflow:"hidden"}}>
@@ -233,6 +285,14 @@ export default function Profile() {
         {step===2 && <StepLifestyle form={form} setField={setField} toggleArr={toggleArr} />}
         {step===3 && <StepGoals     form={form} setField={setField} toggleArr={toggleArr} />}
         <div style={{height:20}}/>
+
+      {/* Reset account — danger zone */}
+      <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
+        <button onClick={()=>setConfirmReset(true)} style={{background:"none",border:"none",color:"#ff3b30",fontSize:12,cursor:"pointer",fontFamily:F,fontWeight:500,padding:"4px 0",letterSpacing:0.3}}>
+          Reset account & start over
+        </button>
+      </div>
+      <div style={{height:20}}/>
       </div>
 
       {/* ── PINNED FOOTER ── */}
@@ -510,5 +570,172 @@ function StepGoals({ form, setField, toggleArr }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Plan Review (after profile edit regen) ────────────
+function ProfilePlanReview({ plan, profile, user, setProfile, onDone }) {
+  const [adjusting,    setAdjusting]    = useState(false);
+  const [adjustInput,  setAdjustInput]  = useState("");
+  const [selectedChip, setSelectedChip] = useState("");
+  const [loading,      setLoading]      = useState(false);
+  const [currentPlan,  setCurrentPlan]  = useState(plan);
+  const [error,        setError]        = useState("");
+  const [adjustCount,  setAdjustCount]  = useState(0);
+  const [committing,   setCommitting]   = useState(false);
+
+  const weekPlan = currentPlan?.weekPlan || [];
+  const macros   = currentPlan?.nutrition?.macros || {};
+  const calories = currentPlan?.nutrition?.dailyCalories;
+
+  const handleAdjust = async () => {
+    const request = selectedChip
+      ? `${selectedChip}${adjustInput ? ": " + adjustInput : ""}`
+      : adjustInput;
+    if (!request.trim()) return;
+    setLoading(true); setError("");
+    try {
+      const r = await fetch("/api/adjust-plan", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ plan: currentPlan, request, profile }),
+      });
+      const updated = await r.json();
+      if (updated.error) { setError(updated.error); }
+      else { setCurrentPlan(updated); setAdjustCount(n=>n+1); setAdjusting(false); setSelectedChip(""); setAdjustInput(""); }
+    } catch(e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  const handleCommit = async () => {
+    setCommitting(true);
+    try {
+      const { saveWeekPlan } = await import("../lib/firebase");
+      await saveWeekPlan(user.uid, profile.currentWeek || 1, currentPlan);
+      const withPlan = { ...profile, plan: currentPlan };
+      setProfile(withPlan);
+      try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(withPlan)); } catch {}
+    } catch(e) { console.error(e); }
+    onDone();
+  };
+
+  return (
+    <Screen>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      <div style={{padding:"44px 20px 0",flexShrink:0}}>
+        <div style={{fontSize:11,color:C.accent,letterSpacing:3,fontWeight:600,marginBottom:6}}>NEW PLAN READY</div>
+        <div style={{fontSize:24,fontWeight:900,color:C.white,letterSpacing:-0.5}}>Review & Adjust</div>
+        <div style={{fontSize:13,color:C.muted,marginTop:4}}>Check your updated plan before committing.</div>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"16px 20px"}}>
+
+        {/* Macros */}
+        {calories && (
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 16px",marginBottom:12}}>
+            <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>NUTRITION TARGETS</div>
+            <div style={{display:"flex",gap:8}}>
+              {[
+                {label:"KCAL",    value:calories,      color:C.accent},
+                {label:"PROTEIN", value:`${macros.protein}g`, color:"#00cfff"},
+                {label:"CARBS",   value:`${macros.carbs}g`,   color:"#ffaa00"},
+                {label:"FAT",     value:`${macros.fat||macros.fats}g`,    color:"#ff5e8a"},
+              ].map(m=>(
+                <div key={m.label} style={{flex:1,background:C.bgDeep,borderRadius:10,padding:"10px 4px",textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:800,color:m.color}}>{m.value}</div>
+                  <div style={{fontSize:8,color:C.dim,letterSpacing:1,fontWeight:600,marginTop:2}}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Week schedule */}
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>WEEKLY SCHEDULE</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {weekPlan.map((day,i)=>{
+              const isRest = day.type==="rest"||day.type==="recovery";
+              return (
+                <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:C.bgDeep,borderRadius:12}}>
+                  <div style={{width:36,textAlign:"center",fontSize:10,color:C.muted,fontWeight:700}}>{day.dayName||`D${i+1}`}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,color:isRest?C.dim:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      {isRest?"Rest Day":(day.focus||day.sessionLabel||"Workout")}
+                    </div>
+                    {!isRest&&day.muscleGroups&&<div style={{fontSize:11,color:C.dim,marginTop:1}}>{day.muscleGroups}</div>}
+                  </div>
+                  <div style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,background:isRest?C.bgCard:C.accentDim,border:`1px solid ${isRest?C.border:C.accentBorder}`,color:isRest?C.dim:C.accent,flexShrink:0}}>
+                    {isRest?"REST":(day.type||"").toUpperCase()}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Adjustment count badge */}
+        {adjustCount>0 && (
+          <div style={{background:"rgba(196,255,0,0.06)",border:`1px solid ${C.accentBorder}`,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style={{fontSize:12,color:C.accent,fontWeight:600}}>{adjustCount} adjustment{adjustCount>1?"s":""} applied</span>
+          </div>
+        )}
+
+        {/* Adjust panel */}
+        {adjusting ? (
+          <div style={{background:C.bgCard,border:`1.5px solid ${C.border}`,borderRadius:16,padding:"16px"}}>
+            <div style={{fontSize:10,color:C.muted,letterSpacing:2,fontWeight:700,marginBottom:12}}>WHAT WOULD YOU LIKE TO CHANGE?</div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
+              {ADJUST_CHIPS.map(chip=>(
+                <button key={chip} onClick={()=>setSelectedChip(selectedChip===chip?"":chip)} style={{
+                  padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:500,
+                  background:selectedChip===chip?C.accentDim:C.bgDeep,
+                  border:`1.5px solid ${selectedChip===chip?C.accent:C.border}`,
+                  color:selectedChip===chip?C.accent:C.muted,
+                  cursor:"pointer",fontFamily:F,
+                }}>
+                  {chip}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={adjustInput}
+              onChange={e=>setAdjustInput(e.target.value)}
+              placeholder={selectedChip?"Add details (optional)...":"Describe your specific request..."}
+              style={{...inputStyle,minHeight:72,marginBottom:12,resize:"none"}}
+            />
+            {error&&<div style={{fontSize:11,color:"#ff5e5e",marginBottom:10}}>{error}</div>}
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{setAdjusting(false);setSelectedChip("");setAdjustInput("");setError("");}} style={{padding:"14px 18px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>Cancel</button>
+              <button onClick={handleAdjust} disabled={(!selectedChip&&!adjustInput.trim())||loading} style={{
+                flex:1,padding:"14px",background:(!selectedChip&&!adjustInput.trim())||loading?C.bgCard:C.accent,
+                border:`1.5px solid ${(!selectedChip&&!adjustInput.trim())||loading?C.border:C.accent}`,
+                borderRadius:14,fontFamily:F,fontSize:14,fontWeight:800,
+                color:(!selectedChip&&!adjustInput.trim())||loading?C.dim:"#0a0a0a",
+                cursor:(!selectedChip&&!adjustInput.trim())||loading?"default":"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+              }}>
+                {loading&&<div style={{width:13,height:13,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
+                {loading?"Adjusting...":"Apply Change"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={()=>setAdjusting(true)} style={{width:"100%",padding:"14px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:13,fontWeight:600,color:C.muted,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Request a Change
+          </button>
+        )}
+      </div>
+
+      <div style={{padding:"12px 20px 36px",flexShrink:0}}>
+        <button onClick={handleCommit} disabled={committing} style={{width:"100%",padding:"16px",background:committing?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:committing?C.accent:"#0a0a0a",cursor:committing?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          {committing&&<div style={{width:14,height:14,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
+          {committing?"Saving...":"This looks great — let's go!"}
+        </button>
+        <div style={{fontSize:11,color:C.dim,textAlign:"center",marginTop:10}}>You can always adjust from the Review tab later.</div>
+      </div>
+    </Screen>
   );
 }
