@@ -1,42 +1,53 @@
-const cache = new Map();
+// Step 1: search by name → get exercise ID
+// Step 2: proxy the GIF stream (keeps API key server-side)
+
+const idCache  = new Map(); // name → exerciseId
+const nilCache = new Set();  // names confirmed to have no match
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "GET") return res.status(405).end();
 
-  const { name, debug } = req.query;
-  if (!name) return res.status(400).json({ error: "Missing exercise name" });
-
-  const key = name.toLowerCase().trim();
-  if (cache.has(key) && !debug) return res.status(200).json({ gif: cache.get(key) });
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: "Missing name" });
 
   const apiKey = process.env.EXERCISEDB_API_KEY;
-  if (!apiKey) return res.status(200).json({ gif: null, error: "no api key" });
+  if (!apiKey) return res.status(200).json({ gif: null });
+
+  const key = name.toLowerCase().trim();
+
+  // Already confirmed no match
+  if (nilCache.has(key)) return res.status(200).json({ gif: null });
 
   try {
-    const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(key)}?limit=1&offset=0`;
-    const response = await fetch(url, {
-      headers: {
-        "X-RapidAPI-Key": apiKey,
-        "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
-      },
-    });
+    // Step 1: get exercise ID (cached)
+    let exerciseId = idCache.get(key);
 
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch { return res.status(200).json({ gif: null, error: "parse failed", raw: text.slice(0,300) }); }
+    if (!exerciseId) {
+      const searchRes = await fetch(
+        `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(key)}?limit=1&offset=0`,
+        { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": "exercisedb.p.rapidapi.com" } }
+      );
+      const data = await searchRes.json();
+      exerciseId = data?.[0]?.id || null;
 
-    // Debug mode — return full first result so we can see all field names
-    if (debug) return res.status(200).json({ firstResult: data?.[0] || null, count: data?.length, status: response.status });
+      if (!exerciseId) { nilCache.add(key); return res.status(200).json({ gif: null }); }
+      idCache.set(key, exerciseId);
+    }
 
-    if (!response.ok) return res.status(200).json({ gif: null });
+    // Step 2: stream the GIF through our proxy (key stays server-side)
+    const gifRes = await fetch(
+      `https://exercisedb.p.rapidapi.com/image?exerciseId=${exerciseId}&resolution=180&rapidapi-key=${apiKey}`,
+      { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": "exercisedb.p.rapidapi.com" } }
+    );
 
-    // Try multiple possible field names ExerciseDB has used
-    const first = data?.[0];
-    const gifUrl = first?.gifUrl || first?.gif || first?.image || first?.imageUrl || null;
+    if (!gifRes.ok) return res.status(200).json({ gif: null });
 
-    if (gifUrl) cache.set(key, gifUrl);
-    return res.status(200).json({ gif: gifUrl });
+    res.setHeader("Content-Type", "image/gif");
+    res.setHeader("Cache-Control", "public, max-age=86400"); // cache 24h in browser
+
+    const buffer = await gifRes.arrayBuffer();
+    res.status(200).send(Buffer.from(buffer));
   } catch (e) {
-    return res.status(200).json({ gif: null, error: e.message });
+    return res.status(200).json({ gif: null });
   }
 }
