@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
+import ExerciseGif from "../components/ExerciseGif";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog } from "../lib/firebase";
 
@@ -372,6 +373,10 @@ function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, el
             {ex.notes && <div style={{fontSize:12,color:C.dim,fontStyle:"italic"}}>{ex.notes}</div>}
           </>
         )}
+        {/* Form demo GIF — lazy loaded on demand */}
+        <div style={{marginTop:8}}>
+          <ExerciseGif exerciseName={ex.name} />
+        </div>
       </div>
 
       {/* SIMPLE: big tap-to-complete circle */}

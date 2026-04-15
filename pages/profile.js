@@ -4,6 +4,7 @@ import { Screen, Label, RadioCard, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { useAuth } from "../lib/AuthContext";
 import { saveUserProfile } from "../lib/firebase";
+import ExerciseGif from "../components/ExerciseGif";
 
 const F = "'Lexend', sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
@@ -659,13 +660,18 @@ function ProfilePlanReview({ plan, profile, user, setProfile, onDone }) {
                             <div style={{fontSize:9,color:BLOCK_COLORS[blockKey],letterSpacing:2,fontWeight:700,marginBottom:6}}>{BLOCK_LABELS[blockKey].toUpperCase()}</div>
                             <div style={{display:"flex",flexDirection:"column",gap:5}}>
                               {exs.map((ex,ei)=>(
-                                <div key={ei} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,padding:"7px 10px",background:C.bgCard,borderRadius:8}}>
-                                  <div style={{flex:1,minWidth:0}}>
-                                    <div style={{fontSize:12,fontWeight:600,color:C.text}}>{ex.name}</div>
-                                    {ex.notes&&<div style={{fontSize:10,color:C.dim,marginTop:2,fontStyle:"italic"}}>{ex.notes}</div>}
+                                <div key={ei} style={{padding:"8px 10px",background:C.bgCard,borderRadius:8}}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                                    <div style={{flex:1,minWidth:0}}>
+                                      <div style={{fontSize:12,fontWeight:600,color:C.text}}>{ex.name}</div>
+                                      {ex.notes&&<div style={{fontSize:10,color:C.dim,marginTop:2,fontStyle:"italic"}}>{ex.notes}</div>}
+                                    </div>
+                                    <div style={{fontSize:11,color:C.muted,flexShrink:0,textAlign:"right"}}>
+                                      {ex.sets&&ex.reps?`${ex.sets}×${ex.reps}`:ex.duration||ex.details||""}
+                                    </div>
                                   </div>
-                                  <div style={{fontSize:11,color:C.muted,flexShrink:0,textAlign:"right"}}>
-                                    {ex.sets&&ex.reps?`${ex.sets}×${ex.reps}`:ex.duration||ex.details||""}
+                                  <div style={{marginTop:6}}>
+                                    <ExerciseGif exerciseName={ex.name} />
                                   </div>
                                 </div>
                               ))}
