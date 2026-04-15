@@ -53,9 +53,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
 
-  if (loading) return null;
-
-  // Pre-fill from existing profile — handle both old flat equipment and new tiered fields
+  // ALL hooks must be before any early return (Rules of Hooks)
   const [form, setFormState] = useState({
     age:               profile?.age            || "",
     gender:            profile?.gender         || "",
@@ -80,6 +78,8 @@ export default function Profile() {
     equipmentOther:    profile?.equipmentOther || "",
     dietaryPrefs:      profile?.dietaryPrefs   || [],
   });
+
+  if (loading) return null;
 
   const setField  = (k,v) => setFormState(f=>({...f,[k]:v}));
   const toggleArr = (k,v) => setFormState(f=>({...f,[k]:f[k].includes(v)?f[k].filter(x=>x!==v):[...f[k],v]}));
