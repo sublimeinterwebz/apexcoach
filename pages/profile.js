@@ -86,6 +86,23 @@ export default function Profile() {
 
   if (loading) return null;
 
+  // Detect if user has actually changed anything
+  const isDirty = (() => {
+    const keys = ["age","gender","weight","weightUnit","height","heightUnit","bodyFat",
+      "fitnessLevel","medicalConditions","jobType","sleepHours","stressLevel",
+      "trainingDays","primaryGoal","targetWeight","equipmentOther"];
+    for (const k of keys) {
+      if (String(form[k]||"") !== String(profile?.[k]||"")) return true;
+    }
+    const arrKeys = ["injuries","trainingDaysOfWeek","workoutLocation","gymEquipment","homeEquipment","dietaryPrefs"];
+    for (const k of arrKeys) {
+      const a = JSON.stringify([...(form[k]||[])].sort());
+      const b = JSON.stringify([...(profile?.[k]||[])].sort());
+      if (a !== b) return true;
+    }
+    return false;
+  })();
+
   const setField  = (k,v) => setFormState(f=>({...f,[k]:v}));
   const toggleArr = (k,v) => setFormState(f=>({...f,[k]:f[k].includes(v)?f[k].filter(x=>x!==v):[...f[k],v]}));
   const progress  = ((step+1)/STEPS.length)*100;
@@ -229,9 +246,21 @@ export default function Profile() {
           <button onClick={()=>setStep(s=>s+1)} style={{width:"100%",padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer"}}>Continue</button>
         ) : (
           <>
-            <button onClick={handleSaveAndRegen} disabled={saving||regening} style={{width:"100%",padding:"15px",background:(saving||regening)?C.accentDim:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:(saving||regening)?C.accent:"#0a0a0a",cursor:(saving||regening)?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
-              {(saving||regening)&&<div style={{width:13,height:13,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
-              {saving?"Saving...":regening?"Rebuilding plan...":"Save & Rebuild Plan"}
+            <button
+              onClick={handleSaveAndRegen}
+              disabled={!isDirty||saving||regening}
+              style={{
+                width:"100%",padding:"15px",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,
+                border:"none",
+                background:(!isDirty||saving||regening)?C.bgCard:C.accent,
+                color:(!isDirty||saving||regening)?C.dim:"#0a0a0a",
+                cursor:(!isDirty||saving||regening)?"default":"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                transition:"all 0.2s",
+                opacity: !isDirty ? 0.5 : 1,
+              }}>
+              {(saving||regening)&&<div style={{width:13,height:13,borderRadius:"50%",border:"2px solid transparent",borderTopColor:C.muted,animation:"spin 0.8s linear infinite"}}/>}
+              {saving?"Saving...":regening?"Rebuilding plan...":isDirty?"Save & Rebuild Plan":"No changes made"}
             </button>
             {regenError&&<div style={{fontSize:11,color:"#ff5e5e",textAlign:"center",marginTop:10}}>{regenError}</div>}
           </>
