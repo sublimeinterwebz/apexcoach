@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { Screen, Label, RadioCard, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { useAuth } from "../lib/AuthContext";
-import { saveUserProfile, resetUserAccount } from "../lib/firebase";
+import { saveUserProfile } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
@@ -69,8 +69,7 @@ export default function Profile() {
   const [regening,      setRegening]      = useState(false);
   const [regenError,    setRegenError]    = useState("");
   const [reviewPlan,    setReviewPlan]    = useState(null);   // plan to review after regen
-  const [confirmReset,  setConfirmReset]  = useState(false);  // reset account confirm
-  const [resetting,     setResetting]     = useState(false);
+
 
   // ALL hooks must be before any early return (Rules of Hooks)
   const [form, setFormState] = useState({
@@ -171,15 +170,6 @@ export default function Profile() {
     } catch(e) { setRegenError(e.message); setSaving(false); setRegening(false); }
   };
 
-  const handleResetAccount = async () => {
-    setResetting(true);
-    try {
-      await resetUserAccount(user.uid);
-      const { signOut } = await import("../lib/firebase");
-      await signOut();
-      router.replace("/");
-    } catch(e) { console.error(e); setResetting(false); setConfirmReset(false); }
-  };
 
   const handleRegen = async () => {
     setRegening(true); setRegenError("");
@@ -218,27 +208,7 @@ export default function Profile() {
     />
   );
 
-  // ── Reset confirm overlay ─────────────────────────────
-  if (confirmReset) return (
-    <Screen style={{alignItems:"center",justifyContent:"center"}}>
-      <div style={{padding:"0 28px",width:"100%",zIndex:1,textAlign:"center"}}>
-        <div style={{fontSize:32,marginBottom:16}}>⚠️</div>
-        <div style={{fontSize:20,fontWeight:900,color:C.white,marginBottom:8}}>Reset Account?</div>
-        <div style={{fontSize:13,color:C.muted,lineHeight:1.65,marginBottom:28}}>
-          This will permanently delete your profile, plan, and all workout history. You will be signed out and taken back to the beginning.
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <button onClick={handleResetAccount} disabled={resetting} style={{width:"100%",padding:"15px",background:"#ff3b30",border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#fff",cursor:resetting?"default":"pointer",opacity:resetting?0.6:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            {resetting&&<div style={{width:14,height:14,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#fff",animation:"spin 0.8s linear infinite"}}/>}
-            {resetting?"Resetting...":"Yes, delete everything"}
-          </button>
-          <button onClick={()=>setConfirmReset(false)} style={{width:"100%",padding:"14px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer"}}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    </Screen>
-  );
+
 
   return (
     <Screen style={{overflow:"hidden"}}>
@@ -286,12 +256,6 @@ export default function Profile() {
         {step===3 && <StepGoals     form={form} setField={setField} toggleArr={toggleArr} />}
         <div style={{height:20}}/>
 
-      {/* Reset account — danger zone */}
-      <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
-        <button onClick={()=>setConfirmReset(true)} style={{background:"none",border:"none",color:"#ff3b30",fontSize:12,cursor:"pointer",fontFamily:F,fontWeight:500,padding:"4px 0",letterSpacing:0.3}}>
-          Reset account & start over
-        </button>
-      </div>
       <div style={{height:20}}/>
       </div>
 
