@@ -1,4 +1,4 @@
-export const config = { maxDuration: 45 };
+export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -9,27 +9,63 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "Missing API key" });
 
-  const prompt = `You are an elite personal trainer reviewing a client's training plan.
+  const days    = parseInt(profile?.trainingDays) || 4;
+  const injuries = (profile?.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
+  const equip    = profile?.equipmentStr || (profile?.equipment || []).join(", ") || "standard gym equipment";
+  const diet     = (profile?.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "no restrictions";
+  const loc      = (profile?.workoutLocation || []).join("/") || "gym";
+  const goal     = { fat_loss:"fat loss", muscle_gain:"muscle gain", maintain:"maintenance" }[profile?.primaryGoal] || "general fitness";
+  const specificDays = (profile?.trainingDaysOfWeek || []).join(", ") || null;
 
-The client has this profile:
-- Goal: ${profile?.primaryGoal || "general fitness"}
-- Fitness level: ${profile?.fitnessLevel || "intermediate"}
-- Training days: ${profile?.trainingDays || 4} days/week
-- Location: ${(profile?.workoutLocation || []).join(", ") || "gym"}
-- Equipment: ${(profile?.equipment || []).join(", ") || "full gym"}
-- Injuries: ${(profile?.injuries || []).filter(x=>x!=="None").join(", ") || "none"}
+  const prompt = `You are an elite fitness coach. A client has reviewed their training plan and made a specific adjustment request. Regenerate their COMPLETE weekly plan incorporating that request.
 
-Their CURRENT PLAN (JSON):
+Client Profile:
+- Age: ${profile?.age}yr, Gender: ${profile?.gender}, Weight: ${profile?.weight}${profile?.weightUnit || "kg"}
+- Fitness Level: ${profile?.fitnessLevel || "intermediate"}
+- Goal: ${goal}
+- Training Days: ${days} days/week${specificDays ? " on " + specificDays : ""}
+- Location: ${loc}
+- Equipment: ${equip}
+- Injuries: ${injuries}
+- Diet: ${diet}
+
+Their CURRENT PLAN:
 ${JSON.stringify(plan, null, 2)}
 
 The client's requested adjustment: "${request}"
 
-TASK: Make ONLY the specific adjustment requested. Do not change anything else unless it is directly related to the request. For example:
-- If they want more warm-up, only modify the warmup blocks
-- If they want to include a specific machine, replace only the relevant exercise
-- If they want to reduce volume, reduce sets/reps in the relevant sessions
+TASK: Regenerate the COMPLETE plan from scratch, fully incorporating this adjustment. Keep everything else consistent with the client's profile. The adjustment request should be clearly reflected in the new plan.
 
-Return the COMPLETE updated plan in EXACTLY the same JSON structure as the input. No extra text, no markdown, just the raw JSON.`;
+Return ONLY raw JSON with EXACTLY this structure (no markdown, no extra text):
+{
+  "weekPlan": [
+    {
+      "day": "Day 1",
+      "dayName": "MON",
+      "dayIndex": 0,
+      "type": "strength",
+      "focus": "Session Name",
+      "muscleGroups": "e.g. Chest, Triceps",
+      "estimatedDuration": "60 MIN",
+      "blocks": {
+        "warmup": [{"name": "", "details": "", "duration": ""}],
+        "main": [{"name": "", "sets": 4, "reps": "6-8", "restSeconds": 120, "notes": ""}],
+        "accessory": [{"name": "", "sets": 3, "reps": "10-12", "restSeconds": 60, "notes": ""}],
+        "finisher": [],
+        "core": [{"name": "", "sets": 3, "reps": "12-15", "restSeconds": 45, "notes": ""}],
+        "cooldown": [{"name": "", "details": "", "duration": ""}]
+      }
+    }
+  ],
+  "progression": {"strategy": "", "nextWeekFocus": ""},
+  "nutrition": {
+    "dailyCalories": 2400,
+    "macros": {"protein": 180, "carbs": 240, "fat": 80},
+    "mealExamples": [{"meal": "Breakfast", "example": "", "calories": 500, "protein": 40}],
+    "tips": [""]
+  },
+  "coachNote": ""
+}`;
 
   try {
     const response = await fetch(
@@ -39,7 +75,7 @@ Return the COMPLETE updated plan in EXACTLY the same JSON structure as the input
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 6000, temperature: 0.3 },
+          generationConfig: { maxOutputTokens: 6000, temperature: 0.4 },
         }),
       }
     );
