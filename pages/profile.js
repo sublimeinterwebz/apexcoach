@@ -114,10 +114,35 @@ export default function Profile() {
       setProfile(updated);
       try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(updated)); } catch {}
       setSaved(true);
-      // Show regen prompt instead of redirecting immediately
-      setShowRegen(true);
+      // Brief "Saved" feedback then go to dashboard
+      setTimeout(() => router.push("/dashboard"), 800);
     } catch(e) { console.error(e); }
     finally { setSaving(false); }
+  };
+
+  const handleSaveAndRegen = async () => {
+    setSaving(true); setRegenError("");
+    try {
+      const updated = buildUpdated();
+      await saveUserProfile(user.uid, updated);
+      setProfile(updated);
+      try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(updated)); } catch {}
+      setSaving(false);
+      // Now regenerate
+      setRegening(true);
+      const r = await fetch("/api/generate-plan", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ ...updated, lastWeekPlan:null, lastWeekFeedback:null }),
+      });
+      const newPlan = await r.json();
+      if (newPlan.error) { setRegenError(newPlan.error); setRegening(false); return; }
+      const { saveWeekPlan } = await import("../lib/firebase");
+      await saveWeekPlan(user.uid, updated.currentWeek || 1, newPlan);
+      const withPlan = { ...updated, plan: newPlan };
+      setProfile(withPlan);
+      try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(withPlan)); } catch {}
+      router.push("/dashboard");
+    } catch(e) { setRegenError(e.message); setSaving(false); setRegening(false); }
   };
 
   const handleRegen = async () => {
@@ -144,38 +169,7 @@ export default function Profile() {
     } catch(e) { setRegenError(e.message); setRegening(false); }
   };
 
-  // ── Regen prompt shown after save ──────────────────────
-  if (showRegen) return (
-    <Screen style={{alignItems:"center",justifyContent:"center"}}>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      <div style={{padding:"0 28px",width:"100%",zIndex:1}}>
-        <div style={{width:60,height:60,borderRadius:"50%",background:C.accentDim,border:`2px solid ${C.accentBorder}`,margin:"0 auto 24px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div style={{fontSize:22,fontWeight:900,color:C.white,textAlign:"center",letterSpacing:-0.5,marginBottom:8}}>PROFILE SAVED</div>
-        <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.65,marginBottom:28}}>
-          Your changes have been saved. Would you like to regenerate your current plan with your updated settings?
-        </div>
-        {regenError && (
-          <div style={{fontSize:11,color:"#ff5e5e",background:"rgba(255,94,94,0.08)",border:"1px solid rgba(255,94,94,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:16,textAlign:"center"}}>
-            {regenError}
-          </div>
-        )}
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <button onClick={handleRegen} disabled={regening} style={{width:"100%",padding:"16px",background:regening?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:regening?C.accent:"#0a0a0a",cursor:regening?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            {regening && <div style={{width:14,height:14,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
-            {regening ? "Regenerating plan..." : "Yes — Rebuild My Plan"}
-          </button>
-          <button onClick={()=>router.push("/dashboard")} disabled={regening} style={{width:"100%",padding:"14px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer"}}>
-            No, keep my current plan
-          </button>
-        </div>
-        <div style={{fontSize:11,color:C.dim,textAlign:"center",marginTop:14,lineHeight:1.5}}>
-          Regeneration takes 30–60 seconds.
-        </div>
-      </div>
-    </Screen>
-  );
+
 
   return (
     <Screen>
@@ -211,9 +205,19 @@ export default function Profile() {
         {!isLast ? (
           <button onClick={()=>setStep(s=>s+1)} style={{flex:2,padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer"}}>Continue</button>
         ) : (
-          <button onClick={handleSave} disabled={saving} style={{flex:2,padding:"15px",background:saving?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:saving?C.accent:"#0a0a0a",cursor:saving?"default":"pointer",transition:"all 0.2s"}}>
-            {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
-          </button>
+          <div style={{flex:2,display:"flex",flexDirection:"column",gap:8}}>
+            <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+            {/* Primary: Save + Rebuild */}
+            <button onClick={handleSaveAndRegen} disabled={saving||regening} style={{width:"100%",padding:"15px",background:(saving||regening)?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:800,color:(saving||regening)?C.accent:"#0a0a0a",cursor:(saving||regening)?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
+              {(saving||regening)&&<div style={{width:13,height:13,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
+              {saving?"Saving...":regening?"Rebuilding plan...":"Save & Rebuild Plan"}
+            </button>
+            {/* Secondary: Save only */}
+            <button onClick={handleSave} disabled={saving||regening} style={{width:"100%",padding:"12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:13,fontWeight:600,color:C.muted,cursor:(saving||regening)?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {saved?<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg><span style={{color:C.accent}}>Saved</span></>:"Save only (keep current plan)"}
+            </button>
+            {regenError&&<div style={{fontSize:11,color:"#ff5e5e",textAlign:"center"}}>{regenError}</div>}
+          </div>
         )}
       </div>
     </Screen>
