@@ -285,6 +285,7 @@ function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCom
   const [error,        setError]        = useState("");
   const [committing,   setCommitting]   = useState(false);
   const [adjustCount,  setAdjustCount]  = useState(0);
+  const [expandedDay,  setExpandedDay]  = useState(null);
 
   const weekPlan = plan?.weekPlan || [];
   const macros   = plan?.nutrition?.macros || {};
@@ -345,28 +346,64 @@ function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCom
           </div>
         )}
 
-        {/* ── Week Plan Summary ── */}
+        {/* ── Week Plan Summary — expandable ── */}
         <div style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px", marginBottom:12 }}>
-          <div style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700, marginBottom:12 }}>WEEKLY SCHEDULE</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <div style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700, marginBottom:4 }}>WEEKLY SCHEDULE</div>
+          <div style={{ fontSize:11, color:C.dim, marginBottom:12 }}>Tap a workout to see exercises</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
             {weekPlan.map((day, i) => {
-              const isRest = day.type==="rest"||day.type==="recovery";
+              const isRest   = day.type==="rest"||day.type==="recovery";
+              const isOpen   = expandedDay===i;
+              const blocks   = day.blocks || {};
+              const BLOCK_COLORS = {warmup:"#ffaa00",main:C.accent,accessory:"#00cfff",finisher:"#ff5e8a",core:"#aa88ff",cooldown:C.muted};
+              const BLOCK_LABELS = {warmup:"Warm-Up",main:"Main Lifts",accessory:"Accessory",finisher:"Finisher",core:"Core",cooldown:"Cooldown"};
               return (
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", background:C.bgDeep, borderRadius:12 }}>
-                  <div style={{ width:36, textAlign:"center" }}>
-                    <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>{day.dayName||`D${i+1}`}</div>
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:isRest?C.dim:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                      {isRest ? "Rest Day" : (day.focus||day.sessionLabel||"Workout")}
+                <div key={i} style={{ borderRadius:12, overflow:"hidden", border:`1px solid ${isOpen?C.accentBorder:C.border}`, transition:"border-color 0.2s" }}>
+                  <button
+                    onClick={() => !isRest && setExpandedDay(isOpen?null:i)}
+                    style={{ width:"100%", display:"flex", alignItems:"center", gap:12, padding:"11px 12px", background:isOpen?C.accentDim:C.bgDeep, border:"none", cursor:isRest?"default":"pointer", fontFamily:"'Lexend',sans-serif", transition:"background 0.2s" }}
+                  >
+                    <div style={{ width:32, textAlign:"center", fontSize:10, color:isOpen?C.accent:C.muted, fontWeight:700, flexShrink:0 }}>{day.dayName||`D${i+1}`}</div>
+                    <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:isRest?C.dim:isOpen?C.accent:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                        {isRest ? "Rest Day" : (day.focus||day.sessionLabel||"Workout")}
+                      </div>
+                      {!isRest && day.muscleGroups && <div style={{ fontSize:11, color:C.dim, marginTop:1 }}>{day.muscleGroups}</div>}
                     </div>
-                    {!isRest && day.muscleGroups && (
-                      <div style={{ fontSize:11, color:C.dim, marginTop:1 }}>{day.muscleGroups}</div>
-                    )}
-                  </div>
-                  <div style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:20, background:isRest?C.bgCard:C.accentDim, border:`1px solid ${isRest?C.border:C.accentBorder}`, color:isRest?C.dim:C.accent, flexShrink:0 }}>
-                    {isRest ? "REST" : (day.type||"").toUpperCase()}
-                  </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                      <div style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:20, background:isRest?C.bgCard:isOpen?C.accent:C.accentDim, border:`1px solid ${isRest?C.border:C.accentBorder}`, color:isRest?C.dim:isOpen?"#0a0a0a":C.accent }}>
+                        {isRest ? "REST" : (day.type||"").toUpperCase()}
+                      </div>
+                      {!isRest && <span style={{ fontSize:14, color:isOpen?C.accent:C.dim, display:"inline-block", transform:isOpen?"rotate(180deg)":"rotate(0deg)", transition:"transform 0.2s" }}>▾</span>}
+                    </div>
+                  </button>
+
+                  {isOpen && !isRest && (
+                    <div style={{ borderTop:`1px solid ${C.border}`, padding:"10px 12px", display:"flex", flexDirection:"column", gap:10 }}>
+                      {["warmup","main","accessory","finisher","core","cooldown"].map(blockKey => {
+                        const exs = blocks[blockKey];
+                        if(!exs||!exs.length) return null;
+                        return (
+                          <div key={blockKey}>
+                            <div style={{ fontSize:9, color:BLOCK_COLORS[blockKey], letterSpacing:2, fontWeight:700, marginBottom:6 }}>{BLOCK_LABELS[blockKey].toUpperCase()}</div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                              {exs.map((ex,ei) => (
+                                <div key={ei} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10, padding:"7px 10px", background:C.bgCard, borderRadius:8 }}>
+                                  <div style={{ flex:1, minWidth:0 }}>
+                                    <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{ex.name}</div>
+                                    {ex.notes && <div style={{ fontSize:10, color:C.dim, marginTop:2, fontStyle:"italic" }}>{ex.notes}</div>}
+                                  </div>
+                                  <div style={{ fontSize:11, color:C.muted, flexShrink:0, textAlign:"right" }}>
+                                    {ex.sets&&ex.reps?`${ex.sets}×${ex.reps}`:ex.duration||ex.details||""}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
