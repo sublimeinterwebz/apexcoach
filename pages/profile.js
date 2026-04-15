@@ -6,9 +6,18 @@ import { saveUserProfile } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
-const EQUIPMENT_OPTIONS = ["Barbell & Plates","Dumbbells","Cables/Pulleys","Smith Machine","Pull-up Bar","Resistance Bands","Kettlebells","Bench","No Equipment"];
-const DIETARY_OPTIONS   = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
-const INJURY_OPTIONS    = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
+
+const DIETARY_OPTIONS = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
+const INJURY_OPTIONS  = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
+const WEEK_DAYS       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const GYM_CATEGORIES  = ["Full Commercial Gym","Free Weights (Barbells & Dumbbells)","Cable & Pulley Machines","Resistance Machines","Cardio Equipment","Racks & Benches","Smith Machine","Pull-up / Dip Station"];
+const HOME_EQUIPMENT  = ["Dumbbells","Resistance Bands","Pull-up Bar","Kettlebells","Barbell & Plates","Bench","Yoga Mat / Floor Space","No Equipment"];
+
+const inputStyle = {
+  width:"100%", padding:"14px 16px", borderRadius:12,
+  background:C.bgCard, border:`1px solid ${C.border}`,
+  color:C.text, fontSize:15, fontFamily:F, fontWeight:400, boxSizing:"border-box",
+};
 
 function ChipBtn({ label, active, onClick }) {
   return (
@@ -28,6 +37,15 @@ function UnitToggle({ value, options, onChange }) {
   );
 }
 
+function StepTitle({ title, sub }) {
+  return (
+    <div style={{marginBottom:20}}>
+      <div style={{fontSize:26,fontWeight:900,color:C.white,letterSpacing:-0.5,marginBottom:4}}>{title}</div>
+      <div style={{fontSize:13,color:C.muted}}>{sub}</div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const router = useRouter();
   const { user, profile, setProfile, loading } = useRequireAuth();
@@ -37,16 +55,30 @@ export default function Profile() {
 
   if (loading) return null;
 
+  // Pre-fill from existing profile — handle both old flat equipment and new tiered fields
   const [form, setFormState] = useState({
-    age:profile?.age||"", gender:profile?.gender||"",
-    weight:profile?.weight||70, weightUnit:profile?.weightUnit||"kg",
-    height:profile?.height||170, heightUnit:profile?.heightUnit||"cm",
-    bodyFat:profile?.bodyFat||"", fitnessLevel:profile?.fitnessLevel||"",
-    injuries:profile?.injuries||[], medicalConditions:profile?.medicalConditions||"",
-    jobType:profile?.jobType||"", sleepHours:profile?.sleepHours||"",
-    stressLevel:profile?.stressLevel||"", trainingDays:profile?.trainingDays||"",
-    primaryGoal:profile?.primaryGoal||"", targetWeight:profile?.targetWeight||"",
-    workoutLocation:profile?.workoutLocation||[], equipment:profile?.equipment||[], dietaryPrefs:profile?.dietaryPrefs||[],
+    age:               profile?.age            || "",
+    gender:            profile?.gender         || "",
+    weight:            profile?.weight         || 70,
+    weightUnit:        profile?.weightUnit     || "kg",
+    height:            profile?.height         || 170,
+    heightUnit:        profile?.heightUnit     || "cm",
+    bodyFat:           profile?.bodyFat        || "",
+    fitnessLevel:      profile?.fitnessLevel   || "",
+    injuries:          profile?.injuries       || [],
+    medicalConditions: profile?.medicalConditions || "",
+    jobType:           profile?.jobType        || "",
+    sleepHours:        profile?.sleepHours     || "",
+    stressLevel:       profile?.stressLevel    || "",
+    trainingDays:      profile?.trainingDays   || "",
+    trainingDaysOfWeek:profile?.trainingDaysOfWeek || [],
+    primaryGoal:       profile?.primaryGoal    || "",
+    targetWeight:      profile?.targetWeight   || "",
+    workoutLocation:   profile?.workoutLocation || [],
+    gymEquipment:      profile?.gymEquipment   || [],
+    homeEquipment:     profile?.homeEquipment  || [],
+    equipmentOther:    profile?.equipmentOther || "",
+    dietaryPrefs:      profile?.dietaryPrefs   || [],
   });
 
   const setField  = (k,v) => setFormState(f=>({...f,[k]:v}));
@@ -57,20 +89,27 @@ export default function Profile() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updated = {...profile,...form};
+      // Build combined equipment string for Gemini
+      const hasGym  = form.workoutLocation.includes("Gym")  || form.workoutLocation.includes("Both");
+      const hasHome = form.workoutLocation.includes("Home") || form.workoutLocation.includes("Both");
+      const equipParts = [];
+      if (hasGym  && form.gymEquipment.length)  equipParts.push(...form.gymEquipment);
+      if (hasHome && form.homeEquipment.length) equipParts.push(...form.homeEquipment);
+      if (form.equipmentOther) equipParts.push(form.equipmentOther);
+
+      const updated = {
+        ...profile,
+        ...form,
+        equipment:    equipParts,
+        equipmentStr: equipParts.join(", ") || "standard gym equipment",
+      };
       await saveUserProfile(user.uid, updated);
       setProfile(updated);
       try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(updated)); } catch {}
       setSaved(true);
-      setTimeout(()=>router.push("/dashboard"),1000);
+      setTimeout(()=>router.push("/dashboard"), 1000);
     } catch(e) { console.error(e); }
     finally { setSaving(false); }
-  };
-
-  const inputStyle = {
-    width:"100%", padding:"14px 16px", borderRadius:12,
-    background:C.bgCard, border:`1px solid ${C.border}`,
-    color:C.text, fontSize:15, fontFamily:F, fontWeight:400, boxSizing:"border-box",
   };
 
   return (
@@ -94,19 +133,21 @@ export default function Profile() {
       </div>
 
       <div style={{flex:1,padding:"0 20px",position:"relative",zIndex:1,overflowY:"auto"}}>
-        {step===0 && <StepBody  form={form} setField={setField} toggleArr={toggleArr} inputStyle={inputStyle} />}
-        {step===1 && <StepHealth form={form} setField={setField} toggleArr={toggleArr} inputStyle={inputStyle} />}
-        {step===2 && <StepLifestyle form={form} setField={setField} />}
-        {step===3 && <StepGoals form={form} setField={setField} toggleArr={toggleArr} inputStyle={inputStyle} />}
+        {step===0 && <StepBody      form={form} setField={setField} />}
+        {step===1 && <StepHealth    form={form} setField={setField} toggleArr={toggleArr} />}
+        {step===2 && <StepLifestyle form={form} setField={setField} toggleArr={toggleArr} />}
+        {step===3 && <StepGoals     form={form} setField={setField} toggleArr={toggleArr} />}
       </div>
 
       <div style={{padding:"16px 20px 36px",display:"flex",gap:10,position:"relative",zIndex:1}}>
-        {step>0 && <button onClick={()=>setStep(s=>s-1)} style={{padding:"15px 20px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,flex:1}}>Back</button>}
+        {step>0 && (
+          <button onClick={()=>setStep(s=>s-1)} style={{padding:"15px 20px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,flex:1}}>Back</button>
+        )}
         {!isLast ? (
           <button onClick={()=>setStep(s=>s+1)} style={{flex:2,padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer"}}>Continue</button>
         ) : (
           <button onClick={handleSave} disabled={saving} style={{flex:2,padding:"15px",background:saving?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:saving?C.accent:"#0a0a0a",cursor:saving?"default":"pointer",transition:"all 0.2s"}}>
-            {saved?"Saved!":saving?"Saving...":"Save Changes"}
+            {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
           </button>
         )}
       </div>
@@ -114,16 +155,8 @@ export default function Profile() {
   );
 }
 
-function StepTitle({ title, sub }) {
-  return (
-    <div style={{marginBottom:20}}>
-      <div style={{fontSize:26,fontWeight:900,color:C.white,letterSpacing:-0.5,marginBottom:4}}>{title}</div>
-      <div style={{fontSize:13,color:C.muted}}>{sub}</div>
-    </div>
-  );
-}
-
-function StepBody({ form, setField, inputStyle }) {
+// ── Step 0: Body ──────────────────────────────────────────
+function StepBody({ form, setField }) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:20}}>
       <StepTitle title="Body Stats" sub="Update your measurements" />
@@ -134,41 +167,52 @@ function StepBody({ form, setField, inputStyle }) {
         </div>
         <div style={{flex:1.5}}>
           <Label>Gender</Label>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {["Male","Female","Other"].map(g=><ChipBtn key={g} label={g} active={form.gender===g} onClick={()=>setField("gender",g)} />)}
+          <div style={{display:"flex",gap:6}}>
+            {["Male","Female"].map(g => (
+              <ChipBtn key={g} label={g} active={form.gender===g} onClick={()=>setField("gender",g)} />
+            ))}
           </div>
         </div>
       </div>
       <div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <Label>Weight</Label><UnitToggle value={form.weightUnit} options={["kg","lbs"]} onChange={v=>setField("weightUnit",v)} />
+          <Label>Weight</Label>
+          <UnitToggle value={form.weightUnit} options={["kg","lbs"]} onChange={v=>setField("weightUnit",v)} />
         </div>
         <input style={inputStyle} placeholder="75" type="number" value={form.weight} onChange={e=>setField("weight",e.target.value)} />
       </div>
       <div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <Label>Height</Label><UnitToggle value={form.heightUnit} options={["cm","ft"]} onChange={v=>setField("heightUnit",v)} />
+          <Label>Height</Label>
+          <UnitToggle value={form.heightUnit} options={["cm","ft"]} onChange={v=>setField("heightUnit",v)} />
         </div>
         <input style={inputStyle} placeholder="175" type="number" value={form.height} onChange={e=>setField("height",e.target.value)} />
       </div>
       <div>
-        <Label>Body Fat %</Label>
+        <Label>Body Fat % <span style={{color:C.dim,fontWeight:400}}>(optional)</span></Label>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {["<10%","10–15%","15–20%","20–25%","25–30%","30%+","Not sure"].map(v=><ChipBtn key={v} label={v} active={form.bodyFat===v} onClick={()=>setField("bodyFat",v)} />)}
+          {["<10%","10–15%","15–20%","20–25%","25–30%","30%+","Not sure"].map(v=>(
+            <ChipBtn key={v} label={v} active={form.bodyFat===v} onClick={()=>setField("bodyFat",v)} />
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-function StepHealth({ form, setField, toggleArr, inputStyle }) {
+// ── Step 1: Health ────────────────────────────────────────
+function StepHealth({ form, setField, toggleArr }) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:20}}>
       <StepTitle title="Health" sub="Keep your limitations up to date" />
       <div>
         <Label>Fitness Level</Label>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{value:"beginner",label:"Beginner",desc:"Less than 6 months"},{value:"intermediate",label:"Intermediate",desc:"6 months – 2 years"},{value:"advanced",label:"Advanced",desc:"2+ years training"}].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.fitnessLevel===o.value} onClick={v=>setField("fitnessLevel",v)} />)}
+          {[
+            {value:"beginner",     label:"Beginner",     desc:"Less than 6 months"},
+            {value:"intermediate", label:"Intermediate", desc:"6 months – 2 years"},
+            {value:"advanced",     label:"Advanced",     desc:"2+ years training"},
+          ].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.fitnessLevel===o.value} onClick={v=>setField("fitnessLevel",v)} />)}
         </div>
       </div>
       <div>
@@ -178,21 +222,29 @@ function StepHealth({ form, setField, toggleArr, inputStyle }) {
         </div>
       </div>
       <div>
-        <Label>Medical Conditions</Label>
+        <Label>Medical Conditions <span style={{color:C.dim,fontWeight:400}}>(optional)</span></Label>
         <textarea style={{...inputStyle,minHeight:70}} placeholder="e.g. diabetes, hypertension..." value={form.medicalConditions} onChange={e=>setField("medicalConditions",e.target.value)} />
       </div>
     </div>
   );
 }
 
-function StepLifestyle({ form, setField }) {
+// ── Step 2: Lifestyle ─────────────────────────────────────
+function StepLifestyle({ form, setField, toggleArr }) {
+  const targetDays   = parseInt(form.trainingDays) || 0;
+  const selectedCount = form.trainingDaysOfWeek.length;
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:20}}>
       <StepTitle title="Lifestyle" sub="Adjust based on changes in your life" />
       <div>
         <Label>Job Type</Label>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{value:"sedentary",label:"Sedentary",desc:"Desk job, mostly sitting"},{value:"light",label:"Lightly Active",desc:"On feet occasionally"},{value:"active",label:"Active",desc:"Physical job"}].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.jobType===o.value} onClick={v=>setField("jobType",v)} />)}
+          {[
+            {value:"sedentary", label:"Sedentary",     desc:"Desk job, mostly sitting"},
+            {value:"light",     label:"Lightly Active", desc:"On feet occasionally"},
+            {value:"active",    label:"Active",         desc:"Physical job"},
+          ].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.jobType===o.value} onClick={v=>setField("jobType",v)} />)}
         </div>
       </div>
       <div>
@@ -207,44 +259,135 @@ function StepLifestyle({ form, setField }) {
           {["Low","Medium","High","Very High"].map(v=><ChipBtn key={v} label={v} active={form.stressLevel===v} onClick={()=>setField("stressLevel",v)} />)}
         </div>
       </div>
+
+      {/* Training days count */}
       <div>
         <Label>Training Days per Week</Label>
         <div style={{display:"flex",gap:8}}>
           {["2","3","4","5","6"].map(v=>(
-            <button key={v} onClick={()=>setField("trainingDays",v)} style={{width:50,height:50,borderRadius:14,background:form.trainingDays===v?C.accent:C.bgCard,border:`1.5px solid ${form.trainingDays===v?C.accent:C.border}`,color:form.trainingDays===v?"#0a0a0a":C.muted,fontWeight:800,fontSize:17,cursor:"pointer",fontFamily:F}}>{v}</button>
+            <button key={v} onClick={()=>{
+              setField("trainingDays",v);
+              if(form.trainingDaysOfWeek.length > parseInt(v)) {
+                setField("trainingDaysOfWeek", form.trainingDaysOfWeek.slice(0, parseInt(v)));
+              }
+            }} style={{width:50,height:50,borderRadius:14,background:form.trainingDays===v?C.accent:C.bgCard,border:`1.5px solid ${form.trainingDays===v?C.accent:C.border}`,color:form.trainingDays===v?"#0a0a0a":C.muted,fontWeight:800,fontSize:17,cursor:"pointer",fontFamily:F}}>
+              {v}
+            </button>
           ))}
         </div>
       </div>
+
+      {/* Specific training days */}
+      {form.trainingDays && (
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <Label>Which days work for you?</Label>
+            <span style={{fontSize:11,color:selectedCount===targetDays?C.accent:C.muted,fontWeight:600}}>
+              {selectedCount}/{targetDays} selected
+            </span>
+          </div>
+          <div style={{display:"flex",gap:7}}>
+            {WEEK_DAYS.map(day=>{
+              const isActive   = form.trainingDaysOfWeek.includes(day);
+              const isDisabled = !isActive && selectedCount >= targetDays;
+              return (
+                <button key={day} onClick={()=>!isDisabled && toggleArr("trainingDaysOfWeek",day)} style={{
+                  flex:1, padding:"10px 0", borderRadius:12,
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                  background: isActive ? C.accent : C.bgCard,
+                  border: `1.5px solid ${isActive?C.accent:isDisabled?C.border:C.borderMid}`,
+                  color: isActive ? "#0a0a0a" : isDisabled ? C.dim : C.muted,
+                  cursor: isDisabled ? "default" : "pointer",
+                  opacity: isDisabled ? 0.4 : 1,
+                  transition:"all 0.18s", fontFamily:F,
+                }}>
+                  <span style={{fontSize:9,fontWeight:700,letterSpacing:0.5}}>{day.toUpperCase()}</span>
+                </button>
+              );
+            })}
+          </div>
+          {selectedCount === targetDays && (
+            <div style={{fontSize:11,color:C.accent,marginTop:8,fontWeight:500}}>✓ Your training schedule is set</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function StepGoals({ form, setField, toggleArr, inputStyle }) {
+// ── Step 3: Goals ─────────────────────────────────────────
+function StepGoals({ form, setField, toggleArr }) {
+  const hasGym  = form.workoutLocation.includes("Gym")  || form.workoutLocation.includes("Both");
+  const hasHome = form.workoutLocation.includes("Home") || form.workoutLocation.includes("Both");
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:20}}>
-      <StepTitle title="Goals" sub="Update what you are training for" />
+      <StepTitle title="Goals & Setup" sub="Update what you are training for" />
       <div>
         <Label>Primary Goal</Label>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{value:"fat_loss",label:"Fat Loss",desc:"Burn fat, get leaner"},{value:"muscle_gain",label:"Muscle Gain",desc:"Build size and strength"},{value:"maintain",label:"Maintain & Tone",desc:"Stay fit, improve definition"}].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v=>setField("primaryGoal",v)} />)}
+          {[
+            {value:"fat_loss",    label:"Fat Loss",        desc:"Burn fat, get leaner"},
+            {value:"muscle_gain", label:"Muscle Gain",     desc:"Build size and strength"},
+            {value:"maintain",    label:"Maintain & Tone", desc:"Stay fit, improve definition"},
+          ].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v=>setField("primaryGoal",v)} />)}
         </div>
       </div>
       <div>
-        <Label>Target Weight</Label>
+        <Label>Target Weight <span style={{color:C.dim,fontWeight:400}}>(optional)</span></Label>
         <input style={inputStyle} placeholder="e.g. 80 kg" value={form.targetWeight} onChange={e=>setField("targetWeight",e.target.value)} />
       </div>
+
+      {/* Location — tiered entry point */}
       <div>
-        <Label>Workout Location</Label>
+        <Label>Where do you train?</Label>
         <div style={{display:"flex",gap:8}}>
-          {["Gym","Home","Both"].map(v=><ChipBtn key={v} label={v} active={form.workoutLocation.includes(v)} onClick={()=>toggleArr("workoutLocation",v)} />)}
+          {["Gym","Home","Both"].map(v=>(
+            <button key={v} onClick={()=>{
+              const current = form.workoutLocation;
+              let next;
+              if(v==="Both") {
+                next = current.includes("Both") ? [] : ["Both"];
+              } else {
+                const without = current.filter(x=>x!=="Both");
+                next = without.includes(v) ? without.filter(x=>x!==v) : [...without,v];
+              }
+              setField("workoutLocation",next);
+            }} style={{flex:1,padding:"12px 8px",borderRadius:14,background:form.workoutLocation.includes(v)?C.accentDim:C.bgCard,border:`1.5px solid ${form.workoutLocation.includes(v)?C.accent:C.border}`,color:form.workoutLocation.includes(v)?C.accent:C.muted,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:F}}>
+              {v}
+            </button>
+          ))}
         </div>
       </div>
-      <div>
-        <Label>Equipment Available</Label>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {EQUIPMENT_OPTIONS.map(v=><ChipBtn key={v} label={v} active={form.equipment.includes(v)} onClick={()=>toggleArr("equipment",v)} />)}
+
+      {/* Gym equipment categories */}
+      {hasGym && (
+        <div>
+          <Label>What's available at your gym?</Label>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+            {GYM_CATEGORIES.map(v=><ChipBtn key={v} label={v} active={form.gymEquipment.includes(v)} onClick={()=>toggleArr("gymEquipment",v)} />)}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Home equipment */}
+      {hasHome && (
+        <div>
+          <Label>Home equipment available</Label>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+            {HOME_EQUIPMENT.map(v=><ChipBtn key={v} label={v} active={form.homeEquipment.includes(v)} onClick={()=>toggleArr("homeEquipment",v)} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Other equipment free text */}
+      {(hasGym||hasHome) && (
+        <div>
+          <Label>Anything else? <span style={{color:C.dim,fontWeight:400}}>(optional)</span></Label>
+          <input style={inputStyle} placeholder="e.g. cable chest fly machine, TRX straps, battle ropes..." value={form.equipmentOther} onChange={e=>setField("equipmentOther",e.target.value)} />
+        </div>
+      )}
+
       <div>
         <Label>Dietary Preferences</Label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
