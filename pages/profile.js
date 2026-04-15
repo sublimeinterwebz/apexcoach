@@ -172,52 +172,69 @@ export default function Profile() {
 
 
   return (
-    <Screen>
-      <div style={{padding:"44px 20px 0",position:"relative",zIndex:1}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+    <Screen style={{overflow:"hidden"}}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      {/* ── PINNED HEADER ── */}
+      <div style={{
+        padding:"44px 20px 16px",
+        background:C.bg,
+        borderBottom:`1px solid ${C.border}`,
+        flexShrink:0,
+        zIndex:10,
+      }}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div>
-            <div style={{fontSize:11,color:C.accent,letterSpacing:3,fontWeight:700,fontStyle:"italic",marginBottom:4}}>APEXCOACH</div>
-            <div style={{fontSize:24,fontWeight:900,color:C.white,letterSpacing:-0.5}}>Edit Profile</div>
+            <div style={{fontSize:11,color:C.accent,letterSpacing:3,fontWeight:700,fontStyle:"italic",marginBottom:3}}>APEXCOACH</div>
+            <div style={{fontSize:22,fontWeight:900,color:C.white,letterSpacing:-0.5}}>Edit Profile</div>
           </div>
-          <button onClick={()=>router.back()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"8px 16px",color:C.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>Cancel</button>
+          <button onClick={()=>router.back()} style={{background:"none",border:"none",color:C.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F,padding:"4px 0"}}>Cancel</button>
         </div>
-        <div style={{height:3,background:C.bgCard,borderRadius:4,overflow:"hidden",marginBottom:14}}>
-          <div style={{height:"100%",width:`${progress}%`,background:C.accent,borderRadius:4,transition:"width 0.4s ease"}}/>
+        {/* Progress bar */}
+        <div style={{height:2,background:C.border,borderRadius:4,overflow:"hidden",marginBottom:12}}>
+          <div style={{height:"100%",width:`${progress}%`,background:C.accent,borderRadius:4,transition:"width 0.35s ease"}}/>
         </div>
-        <div style={{display:"flex",gap:6,marginBottom:24}}>
+        {/* Step pills — tap to navigate */}
+        <div style={{display:"flex",gap:6}}>
           {STEPS.map((s,i)=>(
-            <button key={s} onClick={()=>setStep(i)} style={{fontSize:9,letterSpacing:1.5,fontWeight:700,padding:"5px 12px",borderRadius:20,background:i===step?C.accentDim:"transparent",color:i===step?C.accent:i<step?C.muted:C.dim,border:`1.5px solid ${i===step?C.accent:i<step?C.borderMid:C.border}`,cursor:"pointer",fontFamily:F}}>{s.toUpperCase()}</button>
+            <button key={s} onClick={()=>setStep(i)} style={{
+              fontSize:9,letterSpacing:1.5,fontWeight:700,
+              padding:"5px 12px",borderRadius:20,
+              background:i===step?C.accentDim:"transparent",
+              color:i===step?C.accent:i<step?C.muted:C.dim,
+              border:`1.5px solid ${i===step?C.accent:i<step?C.borderMid:C.border}`,
+              cursor:"pointer",fontFamily:F,transition:"all 0.2s",
+            }}>{s.toUpperCase()}</button>
           ))}
         </div>
       </div>
 
-      <div style={{flex:1,padding:"0 20px",position:"relative",zIndex:1,overflowY:"auto"}}>
+      {/* ── SCROLLABLE CONTENT ── */}
+      <div style={{flex:1,overflowY:"auto",padding:"20px 20px 0"}}>
         {step===0 && <StepBody      form={form} setField={setField} />}
         {step===1 && <StepHealth    form={form} setField={setField} toggleArr={toggleArr} />}
         {step===2 && <StepLifestyle form={form} setField={setField} toggleArr={toggleArr} />}
         {step===3 && <StepGoals     form={form} setField={setField} toggleArr={toggleArr} />}
+        <div style={{height:20}}/>
       </div>
 
-      <div style={{padding:"16px 20px 36px",display:"flex",gap:10,position:"relative",zIndex:1}}>
-        {step>0 && (
-          <button onClick={()=>setStep(s=>s-1)} style={{padding:"15px 20px",borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,flex:1}}>Back</button>
-        )}
+      {/* ── PINNED FOOTER ── */}
+      <div style={{
+        padding:"12px 20px 36px",
+        background:C.bg,
+        borderTop:`1px solid ${C.border}`,
+        flexShrink:0,
+      }}>
         {!isLast ? (
-          <button onClick={()=>setStep(s=>s+1)} style={{flex:2,padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer"}}>Continue</button>
+          <button onClick={()=>setStep(s=>s+1)} style={{width:"100%",padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer"}}>Continue</button>
         ) : (
-          <div style={{flex:2,display:"flex",flexDirection:"column",gap:8}}>
-            <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-            {/* Primary: Save + Rebuild */}
-            <button onClick={handleSaveAndRegen} disabled={saving||regening} style={{width:"100%",padding:"15px",background:(saving||regening)?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:800,color:(saving||regening)?C.accent:"#0a0a0a",cursor:(saving||regening)?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
+          <>
+            <button onClick={handleSaveAndRegen} disabled={saving||regening} style={{width:"100%",padding:"15px",background:(saving||regening)?C.accentDim:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:(saving||regening)?C.accent:"#0a0a0a",cursor:(saving||regening)?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
               {(saving||regening)&&<div style={{width:13,height:13,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
               {saving?"Saving...":regening?"Rebuilding plan...":"Save & Rebuild Plan"}
             </button>
-            {/* Secondary: Save only */}
-            <button onClick={handleSave} disabled={saving||regening} style={{width:"100%",padding:"12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:13,fontWeight:600,color:C.muted,cursor:(saving||regening)?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              {saved?<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg><span style={{color:C.accent}}>Saved</span></>:"Save only (keep current plan)"}
-            </button>
-            {regenError&&<div style={{fontSize:11,color:"#ff5e5e",textAlign:"center"}}>{regenError}</div>}
-          </div>
+            {regenError&&<div style={{fontSize:11,color:"#ff5e5e",textAlign:"center",marginTop:10}}>{regenError}</div>}
+          </>
         )}
       </div>
     </Screen>
