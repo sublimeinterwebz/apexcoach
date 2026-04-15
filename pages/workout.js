@@ -375,7 +375,7 @@ function ActiveScreen({ ex, exIdx, loggable, sets, allDone, isLast, isSimple, el
         )}
         {/* Form demo GIF — lazy loaded on demand */}
         <div style={{marginTop:8}}>
-          <ExerciseGif exerciseName={ex.name} />
+          <ExerciseGif key={ex.name} exerciseName={ex.name} />
         </div>
       </div>
 
