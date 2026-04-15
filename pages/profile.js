@@ -49,9 +49,12 @@ function StepTitle({ title, sub }) {
 export default function Profile() {
   const router = useRouter();
   const { user, profile, setProfile, loading } = useRequireAuth();
-  const [step,   setStep]   = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
+  const [step,        setStep]        = useState(0);
+  const [saving,      setSaving]      = useState(false);
+  const [saved,       setSaved]       = useState(false);
+  const [showRegen,   setShowRegen]   = useState(false);
+  const [regening,    setRegening]    = useState(false);
+  const [regenError,  setRegenError]  = useState("");
 
   // ALL hooks must be before any early return (Rules of Hooks)
   const [form, setFormState] = useState({
@@ -86,31 +89,91 @@ export default function Profile() {
   const progress  = ((step+1)/STEPS.length)*100;
   const isLast    = step === STEPS.length-1;
 
+  const buildUpdated = () => {
+    const hasGym  = form.workoutLocation.includes("Gym")  || form.workoutLocation.includes("Both");
+    const hasHome = form.workoutLocation.includes("Home") || form.workoutLocation.includes("Both");
+    const equipParts = [];
+    if (hasGym  && form.gymEquipment.length)  equipParts.push(...form.gymEquipment);
+    if (hasHome && form.homeEquipment.length) equipParts.push(...form.homeEquipment);
+    if (form.equipmentOther) equipParts.push(form.equipmentOther);
+    return {
+      ...profile,
+      ...form,
+      equipment:    equipParts,
+      equipmentStr: equipParts.join(", ") || "standard gym equipment",
+    };
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Build combined equipment string for Gemini
-      const hasGym  = form.workoutLocation.includes("Gym")  || form.workoutLocation.includes("Both");
-      const hasHome = form.workoutLocation.includes("Home") || form.workoutLocation.includes("Both");
-      const equipParts = [];
-      if (hasGym  && form.gymEquipment.length)  equipParts.push(...form.gymEquipment);
-      if (hasHome && form.homeEquipment.length) equipParts.push(...form.homeEquipment);
-      if (form.equipmentOther) equipParts.push(form.equipmentOther);
-
-      const updated = {
-        ...profile,
-        ...form,
-        equipment:    equipParts,
-        equipmentStr: equipParts.join(", ") || "standard gym equipment",
-      };
+      const updated = buildUpdated();
       await saveUserProfile(user.uid, updated);
       setProfile(updated);
       try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(updated)); } catch {}
       setSaved(true);
-      setTimeout(()=>router.push("/dashboard"), 1000);
+      // Show regen prompt instead of redirecting immediately
+      setShowRegen(true);
     } catch(e) { console.error(e); }
     finally { setSaving(false); }
   };
+
+  const handleRegen = async () => {
+    setRegening(true); setRegenError("");
+    try {
+      const updated = buildUpdated();
+      const r = await fetch("/api/generate-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...updated,
+          lastWeekPlan: null,
+          lastWeekFeedback: null,
+        }),
+      });
+      const newPlan = await r.json();
+      if (newPlan.error) { setRegenError(newPlan.error); setRegening(false); return; }
+      const { saveWeekPlan } = await import("../lib/firebase");
+      await saveWeekPlan(user.uid, updated.currentWeek || 1, newPlan);
+      const withPlan = { ...updated, plan: newPlan };
+      setProfile(withPlan);
+      try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(withPlan)); } catch {}
+      router.push("/dashboard");
+    } catch(e) { setRegenError(e.message); setRegening(false); }
+  };
+
+  // ── Regen prompt shown after save ──────────────────────
+  if (showRegen) return (
+    <Screen style={{alignItems:"center",justifyContent:"center"}}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <div style={{padding:"0 28px",width:"100%",zIndex:1}}>
+        <div style={{width:60,height:60,borderRadius:"50%",background:C.accentDim,border:`2px solid ${C.accentBorder}`,margin:"0 auto 24px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div style={{fontSize:22,fontWeight:900,color:C.white,textAlign:"center",letterSpacing:-0.5,marginBottom:8}}>PROFILE SAVED</div>
+        <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.65,marginBottom:28}}>
+          Your changes have been saved. Would you like to regenerate your current plan with your updated settings?
+        </div>
+        {regenError && (
+          <div style={{fontSize:11,color:"#ff5e5e",background:"rgba(255,94,94,0.08)",border:"1px solid rgba(255,94,94,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:16,textAlign:"center"}}>
+            {regenError}
+          </div>
+        )}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <button onClick={handleRegen} disabled={regening} style={{width:"100%",padding:"16px",background:regening?C.accentDim:C.accent,border:`1.5px solid ${C.accent}`,borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:regening?C.accent:"#0a0a0a",cursor:regening?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {regening && <div style={{width:14,height:14,borderRadius:"50%",border:"2px solid transparent",borderTopColor:"#0a0a0a",animation:"spin 0.8s linear infinite"}}/>}
+            {regening ? "Regenerating plan..." : "Yes — Rebuild My Plan"}
+          </button>
+          <button onClick={()=>router.push("/dashboard")} disabled={regening} style={{width:"100%",padding:"14px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer"}}>
+            No, keep my current plan
+          </button>
+        </div>
+        <div style={{fontSize:11,color:C.dim,textAlign:"center",marginTop:14,lineHeight:1.5}}>
+          Regeneration takes 30–60 seconds.
+        </div>
+      </div>
+    </Screen>
+  );
 
   return (
     <Screen>
