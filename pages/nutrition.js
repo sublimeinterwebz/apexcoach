@@ -12,12 +12,18 @@ export default function Nutrition() {
   const [nutrition,   setNutrition]   = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
-  // Default to today's day index (Mon=0, Tue=1, ... Sun=6)
+  // Default to today's day index (Mon=0 ... Sun=6). Clamped when mealPlans is shorter.
   const todayIdx = (() => {
     const jsDay = new Date().getDay(); // Sun=0 ... Sat=6
-    return jsDay === 0 ? 6 : jsDay - 1; // shift to Mon=0 ... Sun=6
+    return jsDay === 0 ? 6 : jsDay - 1;
   })();
   const [selectedDay, setSelectedDay] = useState(todayIdx);
+
+  // Clamp selectedDay if the plan has fewer days than expected
+  useEffect(() => {
+    const len = nutrition?.mealPlans?.length;
+    if (len && selectedDay >= len) setSelectedDay(0);
+  }, [nutrition, selectedDay]);
 
 
   useEffect(() => {
@@ -92,7 +98,7 @@ export default function Nutrition() {
               </div>
             )}
 
-            {/* Meals — daily selector */}
+            {/* Meals — daily selector, with fallbacks for older plan schemas */}
             {nutrition.mealPlans?.length > 0 ? (
               <>
                 {/* Day selector pills */}
@@ -120,7 +126,7 @@ export default function Nutrition() {
 
                 {/* Selected day meals */}
                 {(()=>{
-                  const day = nutrition.mealPlans[selectedDay];
+                  const day = nutrition.mealPlans[selectedDay] || nutrition.mealPlans[0];
                   if (!day) return null;
                   return (
                     <>
@@ -150,7 +156,32 @@ export default function Nutrition() {
                   <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
                 ))}
               </>
-            ) : null}
+            ) : nutrition.meals ? (
+              // Legacy schema: { breakfast: {...}, lunch: {...}, dinner: {...}, snacks: [...] }
+              <>
+                <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>DAILY MEALS</div>
+                {["breakfast","lunch","dinner"].filter(k=>nutrition.meals[k]).map(k=>(
+                  <LegacyMealCard key={k} mealKey={k} meal={nutrition.meals[k]} isOpen={expanded===k} onToggle={()=>setExpanded(expanded===k?null:k)} />
+                ))}
+                {(nutrition.meals.snacks||[]).map((s,i)=>(
+                  <LegacyMealCard key={`snack_${i}`} mealKey="snack" meal={s} isOpen={expanded===`snack_${i}`} onToggle={()=>setExpanded(expanded===`snack_${i}`?null:`snack_${i}`)} />
+                ))}
+              </>
+            ) : (
+              // Nothing matched — tell the user so they can regenerate
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px 18px",textAlign:"center"}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.muted,marginBottom:8}}>No Meals Yet</div>
+                <div style={{fontSize:12,color:C.dim,lineHeight:1.65,marginBottom:14}}>
+                  Your plan doesn't have a detailed meal structure. Generate next week's plan from the Coach tab to get daily meal plans.
+                </div>
+                <button
+                  onClick={() => router.push("/coach")}
+                  style={{background:C.accentDim,border:`1px solid ${C.accentBorder}`,color:C.accent,padding:"10px 18px",borderRadius:12,fontFamily:F,fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:0.5}}
+                >
+                  GO TO COACH →
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
