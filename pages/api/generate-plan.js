@@ -1,7 +1,7 @@
 export const config = { maxDuration: 60 };
 
-import exercisesData from "../../data/exercises.json";
-import equipmentMap  from "../../data/equipment_map.json";
+const exercisesData = require("../../data/exercises.json");
+const equipmentMap  = require("../../data/equipment_map.json");
 
 // Build filtered exercise name list based on user's equipment
 function getExerciseNames(userEquipmentLabels) {

@@ -1,12 +1,9 @@
-// Looks up exercise by name in local exercises.json → fetches GIF from exercisedb.io
-// No RapidAPI search call needed — name → gifUrl is a local lookup
+const exercisesData = require("../../data/exercises.json");
 
-import exercisesData from "../../data/exercises.json";
-
-// Build lookup map at module load time (runs once per cold start)
+// Build name→gifUrl lookup at module load time
 const nameMap = new Map();
 for (const ex of exercisesData) {
-  if (ex.gifUrl) {
+  if (ex.gifUrl && ex.name) {
     nameMap.set(ex.name.toLowerCase().trim(), ex.gifUrl);
   }
 }
@@ -14,32 +11,29 @@ for (const ex of exercisesData) {
 function cleanName(raw) {
   return raw
     .toLowerCase()
-    .replace(/\(.*?\)/g, "")     // strip (Pendlay) etc
-    .replace(/\/.*$/,   "")      // strip /alternative
+    .replace(/\(.*?\)/g, "")
+    .replace(/\/.*$/,   "")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function findGifUrl(name) {
-  // 1. Exact match
-  if (nameMap.has(name.toLowerCase().trim())) {
-    return nameMap.get(name.toLowerCase().trim());
-  }
-  // 2. Cleaned match
+  const exact = name.toLowerCase().trim();
+  if (nameMap.has(exact)) return nameMap.get(exact);
+
   const clean = cleanName(name);
   if (nameMap.has(clean)) return nameMap.get(clean);
 
-  // 3. Partial: find any entry whose name contains the cleaned query
+  // Partial match — find any entry whose name starts with the first 3 words of query
+  const words = clean.split(" ").slice(0, 3).join(" ");
   for (const [key, url] of nameMap) {
-    if (key.includes(clean) || clean.includes(key.split(" ").slice(0,3).join(" "))) {
-      return url;
-    }
+    if (key.startsWith(words)) return url;
   }
   return null;
 }
 
-const gifCache = new Map(); // name → fetched buffer (avoid re-fetching same GIF)
+const gifCache = new Map();
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
@@ -50,7 +44,6 @@ export default async function handler(req, res) {
   const gifUrl = findGifUrl(name);
   if (!gifUrl) return res.status(404).end();
 
-  // Serve from memory cache if available
   if (gifCache.has(gifUrl)) {
     res.setHeader("Content-Type", "image/gif");
     res.setHeader("Cache-Control", "public, max-age=86400");
@@ -60,10 +53,8 @@ export default async function handler(req, res) {
   try {
     const r = await fetch(gifUrl);
     if (!r.ok) return res.status(404).end();
-
     const buf = Buffer.from(await r.arrayBuffer());
     gifCache.set(gifUrl, buf);
-
     res.setHeader("Content-Type", "image/gif");
     res.setHeader("Cache-Control", "public, max-age=86400");
     return res.status(200).send(buf);
