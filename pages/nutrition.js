@@ -12,6 +12,7 @@ export default function Nutrition() {
   const [nutrition,   setNutrition]   = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
+  const [selectedDay, setSelectedDay] = useState(0);
 
 
   useEffect(() => {
@@ -86,20 +87,62 @@ export default function Nutrition() {
               </div>
             )}
 
-            {/* Meals */}
-            <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>DAILY MEALS</div>
-
-            {nutrition.mealExamples?.length>0 ? (
-              nutrition.mealExamples.map((m,i)=>(
-                <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
-              ))
-            ) : nutrition.meals ? (
+            {/* Meals — daily selector */}
+            {nutrition.mealPlans?.length > 0 ? (
               <>
-                {["breakfast","lunch","dinner"].filter(k=>nutrition.meals[k]).map(k=>(
-                  <LegacyMealCard key={k} mealKey={k} meal={nutrition.meals[k]} isOpen={expanded===k} onToggle={()=>setExpanded(expanded===k?null:k)} />
-                ))}
-                {(nutrition.meals.snacks||[]).map((s,i)=>(
-                  <LegacyMealCard key={`snack_${i}`} mealKey="snack" meal={s} isOpen={expanded===`snack_${i}`} onToggle={()=>setExpanded(expanded===`snack_${i}`?null:`snack_${i}`)} />
+                {/* Day selector pills */}
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:10}}>SELECT DAY</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {nutrition.mealPlans.map((day,i)=>{
+                      const isActive = selectedDay===i;
+                      const isTraining = day.type==="training";
+                      return (
+                        <button key={i} onClick={()=>{setSelectedDay(i);setExpanded(null);}} style={{
+                          padding:"6px 12px",borderRadius:20,border:`1.5px solid ${isActive?C.accent:C.border}`,
+                          background:isActive?C.accentDim:C.bgCard,
+                          color:isActive?C.accent:C.muted,
+                          fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F,
+                          display:"flex",alignItems:"center",gap:5,
+                        }}>
+                          {(day.dayName||`Day ${i+1}`).slice(0,3).toUpperCase()}
+                          {isTraining && <span style={{width:5,height:5,borderRadius:"50%",background:isActive?C.accent:C.dim,display:"inline-block"}}/>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Selected day meals */}
+                {(()=>{
+                  const day = nutrition.mealPlans[selectedDay];
+                  if (!day) return null;
+                  return (
+                    <>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                        <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700}}>
+                          {(day.dayName||"").toUpperCase()} MEALS
+                        </div>
+                        <div style={{fontSize:10,padding:"3px 10px",borderRadius:20,
+                          background:day.type==="training"?C.accentDim:C.bgCard,
+                          border:`1px solid ${day.type==="training"?C.accentBorder:C.border}`,
+                          color:day.type==="training"?C.accent:C.muted,fontWeight:700
+                        }}>
+                          {day.type==="training"?"TRAINING DAY":"REST DAY"}
+                        </div>
+                      </div>
+                      {day.meals?.map((m,i)=>(
+                        <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
+                      ))}
+                    </>
+                  );
+                })()}
+              </>
+            ) : nutrition.mealExamples?.length>0 ? (
+              <>
+                <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>DAILY MEALS</div>
+                {nutrition.mealExamples.map((m,i)=>(
+                  <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
                 ))}
               </>
             ) : null}
@@ -119,7 +162,7 @@ function MealCard({ idx, meal, isOpen, onToggle }) {
       <button onClick={onToggle} style={{width:"100%",padding:"16px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"none",border:"none",cursor:"pointer",fontFamily:F}}>
         <div style={{textAlign:"left"}}>
           <div style={{fontSize:10,color:color,letterSpacing:2,fontWeight:700,marginBottom:4}}>{(meal.meal||"").toUpperCase()}</div>
-          <div style={{fontSize:15,fontWeight:700,color:C.text}}>{meal.example?.split(",")[0]||meal.meal}</div>
+          <div style={{fontSize:15,fontWeight:700,color:C.text}}>{meal.name||meal.example?.split(",")[0]||meal.meal}</div>
           {(meal.calories||meal.protein)&&<div style={{fontSize:12,color:C.muted,marginTop:3}}>{meal.calories?`${meal.calories} kcal`:""}{meal.calories&&meal.protein?" · ":""}{meal.protein?`${meal.protein}g protein`:""}</div>}
         </div>
         <div style={{width:28,height:28,borderRadius:8,background:isOpen?color:C.bgDeep,border:`1px solid ${isOpen?color:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:isOpen?"#0a0a0a":C.muted,fontWeight:800,flexShrink:0,marginLeft:12,transition:"all 0.2s"}}>{isOpen?"−":"+"}</div>

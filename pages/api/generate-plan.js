@@ -33,6 +33,37 @@ function getExerciseNames(userEquipmentLabels) {
   return [...names];
 }
 
+
+// ── TDEE Calculator (Mifflin-St Jeor) ────────────────────────────────
+function calculateTDEE(p) {
+  const weightKg = p.weightUnit === "lbs"
+    ? parseFloat(p.weight || 70) * 0.453592
+    : parseFloat(p.weight || 70);
+  const heightCm = p.heightUnit === "ft"
+    ? parseFloat(p.height || 170) * 30.48
+    : parseFloat(p.height || 170);
+  const age   = parseInt(p.age)   || 25;
+  const days  = parseInt(p.trainingDays) || 3;
+
+  // Mifflin-St Jeor BMR
+  const bmr = p.gender === "Female"
+    ? 10 * weightKg + 6.25 * heightCm - 5 * age - 161
+    : 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
+
+  // Activity multiplier — combines job type + training frequency
+  const job = p.jobType || "sedentary";
+  let multiplier;
+  if      (job === "active")    multiplier = days >= 5 ? 1.9  : 1.725;
+  else if (job === "light")     multiplier = days >= 4 ? 1.55 : 1.375;
+  else /* sedentary */          multiplier = days >= 5 ? 1.55 : days >= 3 ? 1.375 : 1.2;
+
+  const tdee = Math.round(bmr * multiplier);
+
+  // Goal-based adjustment
+  const adj = { fat_loss: -400, muscle_gain: 300, maintain: 0 }[p.primaryGoal] || 0;
+  return { tdee, target: tdee + adj, adj };
+}
+
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 function buildPrompt(p) {
@@ -49,7 +80,9 @@ function buildPrompt(p) {
     ...(p.workoutLocation?.includes("Gym") || p.workoutLocation?.includes("Both") ? ["Full Commercial Gym"] : []),
   ];
   const exerciseNameList = getExerciseNames(equipLabels.length ? equipLabels : ["Full Commercial Gym"]);
-  const goal      = { fat_loss:"fat loss (300kcal deficit)", muscle_gain:"muscle gain (300kcal surplus)", maintain:"maintenance" }[p.primaryGoal] || "maintenance";
+  const { tdee, target, adj } = calculateTDEE(p);
+  const goalLabel = { fat_loss:"fat loss", muscle_gain:"muscle gain", maintain:"maintenance" }[p.primaryGoal] || "maintenance";
+  const goal = `${goalLabel} — calculated TDEE: ${tdee} kcal/day, target: ${target} kcal/day (${adj >= 0 ? "+" : ""}${adj} kcal ${adj < 0 ? "deficit" : adj > 0 ? "surplus" : "maintenance"})`;
 
   // Previous week context
   const lastWeekPlan     = p.lastWeekPlan     || "None (this is the first week)";
@@ -62,7 +95,8 @@ function buildPrompt(p) {
 User Profile:
 - Age: ${p.age}yr, Gender: ${p.gender}, Weight: ${p.weight}${p.weightUnit || "kg"}, Height: ${p.height}${p.heightUnit || "cm"}
 - Fitness Level: ${p.fitnessLevel || "beginner"}
-- Goal: ${goal}
+- Goal: ${goalLabel}
+- Calorie Target: ${target} kcal/day (TDEE: ${tdee}, adjustment: ${adj >= 0 ? "+" : ""}${adj})
 - Training Days: ${days} days/week${specificDays ? ' on ' + specificDays : ''}
 - Location: ${loc}
 - Available Equipment: ${equip}
@@ -120,11 +154,20 @@ ${exerciseNameList.join(", ")}
 
 NUTRITION INSTRUCTIONS
 
-- Goal: ${goal}
+- Goal: ${goalLabel}
+- Calorie Target: ${target} kcal/day (TDEE: ${tdee}, adjustment: ${adj >= 0 ? "+" : ""}${adj})
 - Diet: ${diet}
 - Provide daily calorie estimate and macro breakdown
 - Give 4-5 practical, non-generic meal examples (breakfast, lunch, dinner, snack, pre/post workout)
 - Keep it flexible and sustainable
+
+---
+
+COACHING PHILOSOPHY — Apply these principles to every decision:
+- Think like a real coach, not a template generator. Every exercise, set, and rep range must fit this specific person.
+- Prioritize sustainability over perfection. A plan the user can stick to beats an optimal plan they abandon.
+- Avoid extreme or unrealistic programming. No 2-hour sessions for beginners, no 6-day programs for someone with 3 available days.
+- Every decision must have a reason. Volume, exercise choice, and progression should be deliberate and coherent — not random.
 
 ---
 
@@ -180,17 +223,21 @@ OUTPUT FORMAT — Return ONLY valid JSON. No text outside the JSON object.
   },
   "nutrition": {
     "dailyCalories": 2400,
-    "macros": {
-      "protein": 180,
-      "carbs": 240,
-      "fat": 80
-    },
-    "mealExamples": [
-      {"meal": "Breakfast", "example": "3 scrambled eggs, 80g oats with berries, black coffee", "calories": 520, "protein": 38},
-      {"meal": "Lunch", "example": "200g grilled chicken breast, 150g white rice, cucumber salad", "calories": 650, "protein": 52},
-      {"meal": "Pre-Workout", "example": "1 banana, 20g whey protein in water", "calories": 200, "protein": 20},
-      {"meal": "Dinner", "example": "180g salmon, 200g sweet potato, steamed broccoli", "calories": 680, "protein": 45},
-      {"meal": "Snack", "example": "200g Greek yogurt, 30g mixed nuts", "calories": 300, "protein": 18}
+    "macros": { "protein": 180, "carbs": 240, "fat": 80 },
+    "mealPlans": [
+      {
+        "dayIndex": 0,
+        "dayName": "Monday",
+        "type": "training",
+        "totalCalories": 2400,
+        "meals": [
+          {"meal": "Breakfast", "name": "Scrambled Eggs & Oats", "example": "3 scrambled eggs, 80g oats with banana, black coffee", "calories": 520, "protein": 38},
+          {"meal": "Lunch", "name": "Chicken Rice Bowl", "example": "200g grilled chicken breast, 150g white rice, cucumber salad", "calories": 650, "protein": 52},
+          {"meal": "Pre-Workout", "name": "Banana Protein Shake", "example": "1 banana, 25g whey protein in water", "calories": 200, "protein": 22},
+          {"meal": "Dinner", "name": "Salmon & Sweet Potato", "example": "180g salmon fillet, 200g sweet potato, steamed broccoli", "calories": 680, "protein": 45},
+          {"meal": "Snack", "name": "Greek Yogurt & Nuts", "example": "200g Greek yogurt, 30g mixed nuts", "calories": 300, "protein": 18}
+        ]
+      }
     ],
     "tips": [
       "Drink 2.5–3L of water daily",
