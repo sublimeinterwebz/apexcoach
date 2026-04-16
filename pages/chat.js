@@ -63,16 +63,28 @@ export default function Chat() {
 
       {/* Header */}
       <div style={{padding:"44px 20px 16px",borderBottom:`1px solid ${C.border}`,background:`rgba(17,18,20,0.98)`,backdropFilter:"blur(16px)",flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <button
+            onClick={() => router.push("/coach")}
+            style={{
+              width:36, height:36, borderRadius:12,
+              background:C.bgCard, border:`1px solid ${C.border}`,
+              cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+              color:C.muted, flexShrink:0,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
           <div style={{position:"relative",flexShrink:0}}>
             <div style={{width:44,height:44,borderRadius:14,background:C.accentDim,border:`1.5px solid ${C.accentBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:C.accent,fontFamily:F}}>AC</div>
             <div style={{position:"absolute",bottom:-2,right:-2,width:10,height:10,borderRadius:"50%",background:C.accent,border:`2px solid ${C.bg}`}}/>
           </div>
-          <div style={{flex:1}}>
+          <div style={{flex:1, minWidth:0}}>
             <div style={{fontSize:17,fontWeight:900,color:C.white,letterSpacing:-0.3}}>ApexCoach</div>
             <div style={{fontSize:11,color:C.accent,fontWeight:600,marginTop:1}}>AI Trainer · Online</div>
           </div>
-          <div style={{background:C.accentDim,border:`1px solid ${C.accentBorder}`,borderRadius:10,padding:"5px 12px",fontSize:10,fontWeight:700,color:C.accent,letterSpacing:1}}>WEEK {profile?.currentWeek||1}</div>
         </div>
       </div>
 

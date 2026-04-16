@@ -180,50 +180,23 @@ const NAV_ICONS = {
 };
 
 // ── Bottom Nav ─────────────────────────────────────────
+// NOTE: Re-exports the new 3-tab nav from ui/. Maps old active keys to new keys.
+import NewBottomNav from "./ui/BottomNav";
+
+const ACTIVE_MAP = {
+  dashboard: "home",
+  workout:   "home",    // workout is accessed from home now
+  nutrition: "home",    // nutrition is accessed from home now
+  review:    "coach",
+  chat:      "coach",
+  coach:     "coach",
+  profile:   "profile",
+  home:      "home",
+};
+
 export function BottomNav({ active, router }) {
-  const tabs = [
-    { key: 'dashboard', label: 'HOME',      href: '/dashboard' },
-    { key: 'workout',   label: 'WORKOUT',   href: '/workout'   },
-    { key: 'nutrition', label: 'NUTRITION', href: '/nutrition' },
-    { key: 'review',    label: 'REVIEW',    href: '/review'    },
-    { key: 'chat',      label: 'COACH',     href: '/chat'      },
-  ];
-  return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 430,
-      background: 'rgba(17,18,20,0.97)', backdropFilter: 'blur(16px)',
-      borderTop: `1px solid ${C.border}`,
-      display: 'flex', alignItems: 'center',
-      padding: '10px 8px 28px',
-      zIndex: 100,
-    }}>
-      {tabs.map(({ key, label, href }) => {
-        const isActive = active === key;
-        const Icon = NAV_ICONS[key];
-        return (
-          <button key={key} onClick={() => router.push(href)} style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', gap: 5,
-            background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0',
-          }}>
-            <div style={{
-              width: 44, height: 38, borderRadius: 12,
-              background: isActive ? C.bgCard : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.18s',
-            }}>
-              <Icon color={isActive ? C.accent : C.dim} size={20} />
-            </div>
-            <span style={{
-              fontSize: 9, letterSpacing: 0.8, fontWeight: isActive ? 700 : 500,
-              color: isActive ? C.accent : C.dim, fontFamily: F,
-            }}>{label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  const mapped = ACTIVE_MAP[active] || active;
+  return <NewBottomNav active={mapped} router={router} />;
 }
 
 // ── Spinner ────────────────────────────────────────────

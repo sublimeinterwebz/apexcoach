@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { Screen, Label, RadioCard, C } from "../components/shared";
-import { useRequireAuth } from "../lib/useRequireAuth";
-import { useAuth } from "../lib/AuthContext";
-import { saveUserProfile } from "../lib/firebase";
-import ExerciseGif from "../components/ExerciseGif";
+import { Screen, Label, RadioCard, C } from "../../components/shared";
+import { useRequireAuth } from "../../lib/useRequireAuth";
+import { useAuth } from "../../lib/AuthContext";
+import { saveUserProfile } from "../../lib/firebase";
+import ExerciseGif from "../../components/ExerciseGif";
 
 const F = "'Lexend', sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
@@ -187,7 +187,7 @@ export default function Profile() {
       });
       const newPlan = await r.json();
       if (newPlan.error) { setRegenError(newPlan.error); setRegening(false); return; }
-      const { saveWeekPlan } = await import("../lib/firebase");
+      const { saveWeekPlan } = await import("../../lib/firebase");
       await saveWeekPlan(user.uid, updated.currentWeek || 1, newPlan);
       const withPlan = { ...updated, plan: newPlan };
       setProfile(withPlan);
@@ -575,7 +575,7 @@ function ProfilePlanReview({ plan, profile, user, setProfile, onDone }) {
   const handleCommit = async () => {
     setCommitting(true);
     try {
-      const { saveWeekPlan } = await import("../lib/firebase");
+      const { saveWeekPlan } = await import("../../lib/firebase");
       await saveWeekPlan(user.uid, profile.currentWeek || 1, currentPlan);
       const withPlan = { ...profile, plan: currentPlan };
       setProfile(withPlan);
