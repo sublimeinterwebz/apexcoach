@@ -41,7 +41,7 @@ export default function ProfileSummary() {
 
   return (
     <Screen>
-      <div style={{flex:1,overflowY:"auto",padding:"52px 20px 110px",fontFamily:F}}>
+      <div style={{flex:1,overflowY:"auto",padding:"52px 20px 130px",fontFamily:F}}>
 
         {/* Header */}
         <div style={{marginBottom:24}}>

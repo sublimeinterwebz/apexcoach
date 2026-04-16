@@ -163,7 +163,7 @@ export default function Dashboard() {
 
         {/* ── NUTRITION STRIP ── */}
         {macros && (
-          <div style={{ margin:"16px 20px 100px", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px" }}>
+          <div style={{ margin:"16px 20px 120px", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <span style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700 }}>NUTRITION TODAY</span>
               <button onClick={() => router.push("/nutrition")} style={{ background:"none", border:"none", fontSize:11, color:C.accent, cursor:"pointer", fontFamily:F, fontWeight:600, letterSpacing:1 }}>VIEW MEALS</button>

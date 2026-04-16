@@ -10,15 +10,17 @@ export default function BottomNav({ active, router }) {
 
   return (
     <div style={{
-      position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
-      width: "100%", maxWidth: 430,
-      background: "rgba(17,18,20,0.97)",
-      backdropFilter: "blur(16px)",
-      borderTop: `1px solid ${C.border}`,
+      position: "fixed", bottom: 12, left: "50%", transform: "translateX(-50%)",
+      width: "calc(100% - 32px)", maxWidth: 360,
+      background: "rgba(28,29,33,0.92)",
+      backdropFilter: "blur(20px)",
+      border: `1px solid ${C.border}`,
+      borderRadius: 22,
       display: "flex", alignItems: "center",
-      padding: "10px 8px 28px",
+      padding: "6px 6px",
       zIndex: 100,
       fontFamily: F,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
     }}>
       {tabs.map(({ key, label, icon, href }) => {
         const isActive = active === key;
@@ -28,27 +30,25 @@ export default function BottomNav({ active, router }) {
             onClick={() => router.push(href)}
             style={{
               flex: 1,
-              display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 5,
-              background: "none", border: "none", cursor: "pointer",
-              padding: "2px 0",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 6,
+              background: isActive ? C.accent : "transparent",
+              border: "none", cursor: "pointer",
+              padding: "10px 6px",
+              borderRadius: 18,
+              transition: "all 0.18s",
             }}
           >
-            <div style={{
-              width: 50, height: 40, borderRadius: 14,
-              background: isActive ? C.bgCard : "transparent",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.18s",
-            }}>
-              <Icon name={icon} size={21} color={isActive ? C.accent : C.dim} />
-            </div>
-            <span style={{
-              fontSize: 9, letterSpacing: 1,
-              fontWeight: isActive ? FW.bold : FW.normal,
-              color: isActive ? C.accent : C.dim,
-            }}>
-              {label}
-            </span>
+            <Icon name={icon} size={16} color={isActive ? "#0a0a0a" : C.muted} />
+            {isActive && (
+              <span style={{
+                fontSize: 11, letterSpacing: 0.5,
+                fontWeight: FW.bold,
+                color: "#0a0a0a",
+              }}>
+                {label}
+              </span>
+            )}
           </button>
         );
       })}

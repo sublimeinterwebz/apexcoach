@@ -131,9 +131,10 @@ export default function Coach() {
       {phase==="review"     && (
         <>
           <FAB
-            icon={<Icon name="chat" size={18} color="#0a0a0a"/>}
-            label="Ask Coach"
+            icon={<Icon name="chat" size={20} color="#0a0a0a"/>}
             onClick={() => router.push("/chat")}
+            offsetBottom={88}
+            position="bottom-right"
           />
           <BottomNav active="coach" router={router} />
         </>
@@ -153,7 +154,7 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
   };
 
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",padding:"52px 20px 90px",position:"relative",zIndex:1}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",padding:"52px 20px 140px",position:"relative",zIndex:1}}>
       <div style={{marginBottom:20}}>
         <div style={{fontSize:11,color:C.muted,letterSpacing:3,fontWeight:600,marginBottom:6}}>WEEK {currentWeek}</div>
         <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5}}>WEEKLY <span style={{color:C.accent}}>REVIEW</span></div>

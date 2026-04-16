@@ -12,7 +12,12 @@ export default function Nutrition() {
   const [nutrition,   setNutrition]   = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
-  const [selectedDay, setSelectedDay] = useState(0);
+  // Default to today's day index (Mon=0, Tue=1, ... Sun=6)
+  const todayIdx = (() => {
+    const jsDay = new Date().getDay(); // Sun=0 ... Sat=6
+    return jsDay === 0 ? 6 : jsDay - 1; // shift to Mon=0 ... Sun=6
+  })();
+  const [selectedDay, setSelectedDay] = useState(todayIdx);
 
 
   useEffect(() => {
@@ -52,7 +57,7 @@ export default function Nutrition() {
             <div style={{fontSize:13,color:C.dim,lineHeight:1.7}}>Generate your plan from the dashboard.</div>
           </div>
         ) : (
-          <div style={{flex:1,overflowY:"auto",padding:"0 20px",paddingBottom:90}}>
+          <div style={{flex:1,overflowY:"auto",padding:"0 20px",paddingBottom:110}}>
             {/* Macro targets */}
             <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:"18px 16px",marginBottom:16}}>
               <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:14}}>DAILY TARGETS</div>

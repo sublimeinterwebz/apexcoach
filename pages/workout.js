@@ -240,7 +240,7 @@ export default function Workout() {
           </div>
         )}
 
-        <div style={{flex:1,padding:"0 20px",overflowY:"auto",paddingBottom:90}}>
+        <div style={{flex:1,padding:"0 20px",overflowY:"auto",paddingBottom:110}}>
           {!dayData ? (
             <div style={{textAlign:"center",padding:"40px 0",color:C.dim,fontSize:14}}>No plan yet. Generate from dashboard.</div>
           ) : dayData.type==="rest"||dayData.type==="recovery" ? (
