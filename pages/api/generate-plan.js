@@ -1,5 +1,38 @@
 export const config = { maxDuration: 60 };
 
+import exercisesData from "../../data/exercises.json";
+import equipmentMap  from "../../data/equipment_map.json";
+
+// Build filtered exercise name list based on user's equipment
+function getExerciseNames(userEquipmentLabels) {
+  const PRIORITY = ["barbell","dumbbell","cable","leverage machine","smith machine",
+                    "kettlebell","band","resistance band","ez barbell","olympic barbell",
+                    "weighted","body weight"];
+
+  const allowed = new Set(["body weight"]);
+  (userEquipmentLabels || []).forEach(label => {
+    (equipmentMap[label] || []).forEach(eq => allowed.add(eq));
+  });
+
+  // Group by (equipment, bodyPart), take top 5 per group (preserves all key exercises)
+  const groups = {};
+  for (const ex of exercisesData) {
+    if (!allowed.has(ex.equipment) || !ex.name) continue;
+    const key = `${ex.equipment}|${ex.bodyPart}`;
+    if (!groups[key]) groups[key] = [];
+    if (groups[key].length < 5) groups[key].push(ex.name);
+  }
+
+  // Collect in priority order
+  const names = new Set();
+  for (const equip of PRIORITY) {
+    for (const [key, list] of Object.entries(groups)) {
+      if (key.startsWith(equip + "|")) list.forEach(n => names.add(n));
+    }
+  }
+  return [...names];
+}
+
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 function buildPrompt(p) {
@@ -8,7 +41,14 @@ function buildPrompt(p) {
   const equip         = p.equipmentStr || (p.equipment || []).join(", ") || "standard gym equipment";
   const diet          = (p.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "no restrictions";
   const loc           = (p.workoutLocation || []).join("/") || "gym";
-  const specificDays  = (p.trainingDaysOfWeek || []).join(", ") || null;
+  const specificDays     = (p.trainingDaysOfWeek || []).join(", ") || null;
+  // Build equipment labels list for exercise name filtering
+  const equipLabels      = [
+    ...(p.gymEquipment  || []),
+    ...(p.homeEquipment || []),
+    ...(p.workoutLocation?.includes("Gym") || p.workoutLocation?.includes("Both") ? ["Full Commercial Gym"] : []),
+  ];
+  const exerciseNameList = getExerciseNames(equipLabels.length ? equipLabels : ["Full Commercial Gym"]);
   const goal      = { fat_loss:"fat loss (300kcal deficit)", muscle_gain:"muscle gain (300kcal surplus)", maintain:"maintenance" }[p.primaryGoal] || "maintenance";
 
   // Previous week context
@@ -61,6 +101,10 @@ Design a 7-day plan that mimics a real coach:
 - STRICTLY avoid exercises that aggravate: ${injuries}
 - Vary exercises across the week (avoid repeating the same exercise in consecutive sessions)
 - Compound movements first, isolation later
+- EXERCISE NAMING: Use EXACT names from the reference list below whenever possible. Only invent a name if no suitable match exists. This ensures exercise demonstrations work correctly.
+
+Available exercise names for this user's equipment:
+${exerciseNameList.join(", ")}
 
 4. Progressive Overload Logic:
 - If previous week exists and user found it easy: increase sets, reps, or load

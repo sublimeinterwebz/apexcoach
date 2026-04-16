@@ -1,0 +1,72 @@
+{
+  "Full Commercial Gym": [
+    "barbell",
+    "dumbbell",
+    "cable",
+    "leverage machine",
+    "smith machine",
+    "kettlebell",
+    "band",
+    "ez barbell",
+    "olympic barbell",
+    "weighted",
+    "body weight"
+  ],
+  "Free Weights (Barbells & Dumbbells)": [
+    "barbell",
+    "dumbbell",
+    "ez barbell",
+    "olympic barbell"
+  ],
+  "Cable & Pulley Machines": [
+    "cable",
+    "rope"
+  ],
+  "Resistance Machines": [
+    "leverage machine",
+    "sled machine"
+  ],
+  "Cardio Equipment": [
+    "stationary bike",
+    "skierg machine",
+    "stepmill machine",
+    "elliptical machine"
+  ],
+  "Racks & Benches": [
+    "barbell",
+    "olympic barbell"
+  ],
+  "Smith Machine": [
+    "smith machine"
+  ],
+  "Pull-up / Dip Station": [
+    "body weight"
+  ],
+  "Dumbbells": [
+    "dumbbell"
+  ],
+  "Resistance Bands": [
+    "band",
+    "resistance band"
+  ],
+  "Pull-up Bar": [
+    "body weight"
+  ],
+  "Kettlebells": [
+    "kettlebell"
+  ],
+  "Barbell & Plates": [
+    "barbell",
+    "ez barbell"
+  ],
+  "Bench": [
+    "dumbbell",
+    "barbell"
+  ],
+  "Yoga Mat / Floor Space": [
+    "body weight"
+  ],
+  "No Equipment": [
+    "body weight"
+  ]
+}

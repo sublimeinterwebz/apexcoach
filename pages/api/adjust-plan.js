@@ -1,5 +1,31 @@
 export const config = { maxDuration: 60 };
 
+import exercisesData from "../../data/exercises.json";
+import equipmentMap  from "../../data/equipment_map.json";
+
+function getExerciseNames(userEquipmentLabels) {
+  const PRIORITY = ["barbell","dumbbell","cable","leverage machine","smith machine",
+                    "kettlebell","band","resistance band","ez barbell","body weight"];
+  const allowed = new Set(["body weight"]);
+  (userEquipmentLabels || []).forEach(label => {
+    (equipmentMap[label] || []).forEach(eq => allowed.add(eq));
+  });
+  const groups = {};
+  for (const ex of exercisesData) {
+    if (!allowed.has(ex.equipment) || !ex.name) continue;
+    const key = `${ex.equipment}|${ex.bodyPart}`;
+    if (!groups[key]) groups[key] = [];
+    if (groups[key].length < 5) groups[key].push(ex.name);
+  }
+  const names = new Set();
+  for (const equip of PRIORITY) {
+    for (const [key, list] of Object.entries(groups)) {
+      if (key.startsWith(equip + "|")) list.forEach(n => names.add(n));
+    }
+  }
+  return [...names];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
@@ -33,6 +59,9 @@ Their CURRENT PLAN:
 ${JSON.stringify(plan, null, 2)}
 
 The client's requested adjustment: "${request}"
+
+Available exercise names for this client's equipment (use EXACT names from this list):
+${getExerciseNames([...(profile?.gymEquipment||[]), ...(profile?.homeEquipment||[])]).join(", ")}
 
 TASK: Regenerate the COMPLETE plan from scratch, fully incorporating this adjustment. Keep everything else consistent with the client's profile. The adjustment request should be clearly reflected in the new plan.
 
