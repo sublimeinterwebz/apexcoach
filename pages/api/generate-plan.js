@@ -225,19 +225,15 @@ OUTPUT FORMAT — Return ONLY valid JSON. No text outside the JSON object.
     "dailyCalories": 2400,
     "macros": { "protein": 180, "carbs": 240, "fat": 80 },
     "mealPlans": [
-      {
-        "dayIndex": 0,
-        "dayName": "Monday",
-        "type": "training",
-        "totalCalories": 2400,
-        "meals": [
-          {"meal": "Breakfast", "name": "Scrambled Eggs & Oats", "example": "3 scrambled eggs, 80g oats with banana, black coffee", "calories": 520, "protein": 38},
-          {"meal": "Lunch", "name": "Chicken Rice Bowl", "example": "200g grilled chicken breast, 150g white rice, cucumber salad", "calories": 650, "protein": 52},
-          {"meal": "Pre-Workout", "name": "Banana Protein Shake", "example": "1 banana, 25g whey protein in water", "calories": 200, "protein": 22},
-          {"meal": "Dinner", "name": "Salmon & Sweet Potato", "example": "180g salmon fillet, 200g sweet potato, steamed broccoli", "calories": 680, "protein": 45},
-          {"meal": "Snack", "name": "Greek Yogurt & Nuts", "example": "200g Greek yogurt, 30g mixed nuts", "calories": 300, "protein": 18}
-        ]
-      }
+      {"dayIndex": 0, "dayName": "Monday", "type": "training", "meals": [
+        {"meal": "Breakfast", "name": "Scrambled Eggs & Oats", "example": "3 scrambled eggs, 80g oats, banana", "calories": 520, "protein": 38},
+        {"meal": "Lunch", "name": "Chicken Rice Bowl", "example": "200g chicken, 150g rice, salad", "calories": 650, "protein": 52},
+        {"meal": "Pre-Workout", "name": "Protein Shake", "example": "25g whey, banana", "calories": 200, "protein": 22},
+        {"meal": "Dinner", "name": "Salmon & Sweet Potato", "example": "180g salmon, 200g sweet potato", "calories": 680, "protein": 45},
+        {"meal": "Snack", "name": "Greek Yogurt", "example": "200g Greek yogurt, nuts", "calories": 300, "protein": 18}
+      ]},
+      {"dayIndex": 1, "dayName": "Tuesday", "type": "rest", "meals": [...]},
+      ... (7 days total, ALL different meals)
     ],
     "tips": [
       "Drink 2.5–3L of water daily",
@@ -266,7 +262,7 @@ export default async function handler(req, res) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.8, maxOutputTokens: 6000 },
+            generationConfig: { temperature: 0.6, maxOutputTokens: 12000 },
           }),
         }
       );
