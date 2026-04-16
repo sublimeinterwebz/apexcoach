@@ -104,7 +104,7 @@ export default function Dashboard() {
                 <circle cx="12" cy="8" r="4"/><path d="M4 20C4 16.69 7.58 14 12 14C16.42 14 20 16.69 20 20"/>
               </svg>
             </button>
-            <span style={{ fontFamily:F, fontWeight:800, fontSize:15, color:C.text, letterSpacing:1, fontStyle:"italic" }}>APEX COACH</span>
+            <span style={{ fontFamily:F, fontWeight:800, fontSize:13, color:C.accent, letterSpacing:3, fontWeight:700, fontStyle:"italic" }}>APEXCOACH</span>
           </div>
           <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round">
