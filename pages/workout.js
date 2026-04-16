@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
+import { ExerciseRow, ExercisePicker, BLOCK_COLORS, BLOCK_LABELS, Icon, Button } from "../components/ui";
 import ExerciseGif from "../components/ExerciseGif";
 import { useRequireAuth } from "../lib/useRequireAuth";
-import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog } from "../lib/firebase";
+import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog, applyPlanEdit } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
 const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
@@ -59,6 +60,7 @@ export default function Workout() {
   const [elapsed,     setElapsed]     = useState(0);
   const [workoutLog,  setWorkoutLog]  = useState(null); // saved after finish
   const [completedLog, setCompletedLog] = useState(null);  // existing log from Firestore
+  const [pickerState,  setPickerState]  = useState({ open: false, mode: null, block: null, exerciseIndex: null, dayIndex: null });
   const timerRef = useRef(null), elapsedRef = useRef(null);
 
   // Sync from dashboard ?day= param
@@ -109,6 +111,71 @@ export default function Workout() {
     timerRef.current=setInterval(()=>setTimer(t=>{if(!t||t.seconds<=1){clearInterval(timerRef.current);return null;}return{...t,seconds:t.seconds-1};}),1000);
     return()=>clearInterval(timerRef.current);
   }, [!!timer]);
+
+  // ── Plan edits (add/replace/remove/reorder) ──────────────
+  const persistPlanEdit = async (newWeekPlan, editRecord) => {
+    if (!user) return;
+    const week = profile?.currentWeek || 1;
+    const fullPlan = { ...(profile?.plan || {}), weekPlan: newWeekPlan };
+    setWeekPlan(newWeekPlan); // optimistic
+    try {
+      await applyPlanEdit(user.uid, week, fullPlan, editRecord);
+    } catch(e) { console.error("plan edit save failed:", e); }
+  };
+
+  const handleRemoveExercise = (dayIdx, blockKey, exerciseIdx) => {
+    const day = weekPlan[dayIdx];
+    if (!day?.blocks?.[blockKey]) return;
+    const removed = day.blocks[blockKey][exerciseIdx];
+    const newBlocks = { ...day.blocks, [blockKey]: day.blocks[blockKey].filter((_, i) => i !== exerciseIdx) };
+    const newWeek = weekPlan.map((d, i) => i === dayIdx ? { ...d, blocks: newBlocks } : d);
+    persistPlanEdit(newWeek, { type: "remove", day: day.dayName || day.day, block: blockKey, from: removed?.name });
+  };
+
+  const handleMoveExercise = (dayIdx, blockKey, fromIdx, direction) => {
+    const day = weekPlan[dayIdx];
+    if (!day?.blocks?.[blockKey]) return;
+    const arr = [...day.blocks[blockKey]];
+    const toIdx = fromIdx + (direction === "up" ? -1 : 1);
+    if (toIdx < 0 || toIdx >= arr.length) return;
+    [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
+    const newBlocks = { ...day.blocks, [blockKey]: arr };
+    const newWeek = weekPlan.map((d, i) => i === dayIdx ? { ...d, blocks: newBlocks } : d);
+    persistPlanEdit(newWeek, { type: "reorder", day: day.dayName || day.day, block: blockKey, note: `Moved ${arr[toIdx].name} ${direction}` });
+  };
+
+  const openPickerForReplace = (dayIdx, blockKey, exerciseIdx) => {
+    setPickerState({ open: true, mode: "replace", block: blockKey, exerciseIndex: exerciseIdx, dayIndex: dayIdx });
+  };
+  const openPickerForAdd = (dayIdx, blockKey) => {
+    setPickerState({ open: true, mode: "add", block: blockKey, exerciseIndex: null, dayIndex: dayIdx });
+  };
+  const closePicker = () => setPickerState({ open: false, mode: null, block: null, exerciseIndex: null, dayIndex: null });
+
+  const handlePick = (picked) => {
+    const { mode, block, exerciseIndex, dayIndex } = pickerState;
+    const day = weekPlan[dayIndex];
+    if (!day) { closePicker(); return; }
+
+    if (mode === "replace") {
+      const oldEx = day.blocks[block][exerciseIndex];
+      const newEx = { ...oldEx, name: picked.name }; // preserve sets/reps/rest
+      const newBlocks = { ...day.blocks, [block]: day.blocks[block].map((e, i) => i === exerciseIndex ? newEx : e) };
+      const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
+      persistPlanEdit(newWeek, { type: "swap", day: day.dayName || day.day, block, from: oldEx?.name, to: picked.name });
+    } else if (mode === "add") {
+      const defaults = block === "main"      ? { sets: 3, reps: "8-10", restSeconds: 90 }
+                     : block === "accessory" ? { sets: 3, reps: "10-12", restSeconds: 75 }
+                     : block === "core"      ? { sets: 3, reps: "12-15", restSeconds: 60 }
+                     : {};
+      const newEx = { name: picked.name, ...defaults, notes: "" };
+      const existing = day.blocks[block] || [];
+      const newBlocks = { ...day.blocks, [block]: [...existing, newEx] };
+      const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
+      persistPlanEdit(newWeek, { type: "add", day: day.dayName || day.day, block, to: picked.name });
+    }
+    closePicker();
+  };
 
   const updateSet   = (si,f,v) => setAllSets(p=>{const n=p.map(s=>[...s]);n[exIdx][si]={...n[exIdx][si],[f]:v};return n;});
   const completeSet = (si) => {
@@ -246,11 +313,30 @@ export default function Workout() {
           ) : dayData.type==="rest"||dayData.type==="recovery" ? (
             <RestView day={dayData} isToday={selectedDay===TODAY_IDX} />
           ) : (
-            <WorkoutView day={dayData} flat={flat} loggable={loggable} isToday={selectedDay===TODAY_IDX} onStart={startWorkout} completedLog={selectedDay===TODAY_IDX ? completedLog : null} />
+            <WorkoutView
+              day={dayData}
+              dayIndex={selectedDay}
+              flat={flat}
+              loggable={loggable}
+              isToday={selectedDay===TODAY_IDX}
+              onStart={startWorkout}
+              completedLog={selectedDay===TODAY_IDX ? completedLog : null}
+              onRemove={handleRemoveExercise}
+              onReplace={openPickerForReplace}
+              onAdd={openPickerForAdd}
+              onMoveUp={(dIdx,block,exIdx) => handleMoveExercise(dIdx,block,exIdx,"up")}
+              onMoveDown={(dIdx,block,exIdx) => handleMoveExercise(dIdx,block,exIdx,"down")}
+            />
           )}
         </div>
       </div>
       <BottomNav active="workout" router={router} />
+      <ExercisePicker
+        isOpen={pickerState.open}
+        onClose={closePicker}
+        onPick={handlePick}
+        title={pickerState.mode === "replace" ? "Replace Exercise" : "Add Exercise"}
+      />
     </Screen>
   );
 }
@@ -285,8 +371,13 @@ function RestView({ day, isToday }) {
 }
 
 // ── Workout View (preview) ─────────────────────────────
-function WorkoutView({ day, flat, loggable, isToday, onStart, completedLog }) {
+function WorkoutView({ day, dayIndex, flat, loggable, isToday, onStart, completedLog, onRemove, onReplace, onAdd, onMoveUp, onMoveDown }) {
   const isCompleted = !!completedLog;
+
+  // Group exercises by block for editing
+  const blocks = day?.blocks || {};
+  const blockOrder = ["warmup","main","accessory","finisher","core","cooldown"];
+
   return (
     <div>
       <div style={{background:C.bgCard,borderRadius:20,padding:20,border:`1.5px solid ${isCompleted?"#5a8a00":C.border}`,marginBottom:14}}>
@@ -298,7 +389,6 @@ function WorkoutView({ day, flat, loggable, isToday, onStart, completedLog }) {
         <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{day.muscleGroups} · {loggable.length} exercises</div>
 
         {isCompleted ? (
-          // Already done — show stats, no start button
           <div style={{background:C.bgDeep,borderRadius:14,padding:"14px 16px"}}>
             <div style={{fontSize:10,color:"#5a8a00",letterSpacing:2.5,fontWeight:700,marginBottom:10}}>SESSION LOGGED</div>
             <div style={{display:"flex",gap:8}}>
@@ -320,19 +410,65 @@ function WorkoutView({ day, flat, loggable, isToday, onStart, completedLog }) {
           <div style={{fontSize:12,color:C.dim,fontStyle:"italic",textAlign:"center",padding:"4px 0"}}>Navigate to today's session to start</div>
         )}
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        {flat.map((item,i) => item.isHeader ? (
-          <div key={i} style={{fontSize:10,letterSpacing:2.5,fontWeight:700,color:item.color,marginTop:i===0?0:14,paddingBottom:8,borderBottom:`1px solid ${item.color}22`}}>{item.label.toUpperCase()}</div>
-        ) : (
-          <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:600,color:C.text}}>{item.name}</div>
-              <div style={{fontSize:11,color:C.muted,marginTop:2}}>{item.sets&&item.reps?`${item.sets} sets · ${item.reps} reps`:item.duration||item.details||""}</div>
-              {item.notes&&<div style={{fontSize:11,color:C.dim,marginTop:2,fontStyle:"italic"}}>{item.notes}</div>}
+
+      {/* Editable block sections */}
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        {blockOrder.map(blockKey => {
+          const exercises = blocks[blockKey] || [];
+          const meta = BLOCK_META[blockKey];
+          if (!meta) return null;
+
+          // Don't render empty blocks unless they're main/accessory (to allow adding)
+          if (exercises.length === 0 && !["main","accessory","core"].includes(blockKey)) return null;
+
+          return (
+            <div key={blockKey}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                <div style={{fontSize:10,letterSpacing:2.5,fontWeight:700,color:meta.color,paddingBottom:4}}>
+                  {meta.label.toUpperCase()}
+                </div>
+                {!isCompleted && (
+                  <button
+                    onClick={() => onAdd(dayIndex, blockKey)}
+                    style={{
+                      background:"transparent", border:`1px dashed ${meta.color}44`,
+                      color:meta.color, fontSize:10, fontWeight:700, letterSpacing:0.5,
+                      padding:"4px 10px", borderRadius:14, cursor:"pointer",
+                      fontFamily:F, display:"flex", alignItems:"center", gap:4,
+                    }}
+                  >
+                    <Icon name="plus" size={11} color={meta.color}/>
+                    ADD
+                  </button>
+                )}
+              </div>
+
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {exercises.length === 0 ? (
+                  <div style={{padding:"16px 12px",background:C.bgCard,border:`1px dashed ${C.border}`,borderRadius:12,textAlign:"center"}}>
+                    <div style={{fontSize:12,color:C.dim,fontStyle:"italic"}}>No exercises in this block</div>
+                  </div>
+                ) : exercises.map((ex, idx) => (
+                  <ExerciseRow
+                    key={`${blockKey}-${idx}-${ex.name}`}
+                    exercise={ex}
+                    index={idx}
+                    blockColor={meta.color}
+                    editable={!isCompleted}
+                    reorderable={exercises.length > 1}
+                    showGif={true}
+                    isFirst={idx === 0}
+                    isLast={idx === exercises.length - 1}
+                    onReplace={() => onReplace(dayIndex, blockKey, idx)}
+                    onRemove={() => onRemove(dayIndex, blockKey, idx)}
+                    onMoveUp={() => onMoveUp(dayIndex, blockKey, idx)}
+                    onMoveDown={() => onMoveDown(dayIndex, blockKey, idx)}
+                  />
+                ))}
+              </div>
             </div>
-            {item.restSeconds&&item.sets&&<div style={{fontSize:11,color:C.dim,flexShrink:0}}>{item.restSeconds}s</div>}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

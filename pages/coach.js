@@ -86,6 +86,10 @@ export default function Coach() {
     }, 50);
 
     try {
+      // Pull current week's user edits to pass to Gemini so they persist as preferences
+      const currentWeekPlan = plan || await getWeekPlan(user.uid, currentWeek);
+      const lastWeekEdits   = currentWeekPlan?.edits || [];
+
       const r = await fetch("/api/generate-plan", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -94,6 +98,7 @@ export default function Coach() {
           currentWeek: currentWeek + 1,
           lastWeekPlan: JSON.stringify(lastWeekSummary),
           lastWeekFeedback: feedbackSummary,
+          lastWeekEdits,
         }),
       });
       const newPlan = await r.json();

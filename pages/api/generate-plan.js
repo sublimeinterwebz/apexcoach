@@ -90,6 +90,19 @@ function buildPrompt(p) {
     ? `Difficulty: ${p.lastWeekFeedback.difficulty}, Energy: ${p.lastWeekFeedback.energy}, Completed workouts: ${p.lastWeekFeedback.completedWorkouts} of ${days}`
     : "None (this is the first week)";
 
+  // Previous week user edits — the user modified exercises last week
+  // Format as human-readable list so Gemini can honor their preferences
+  const lastWeekEdits = Array.isArray(p.lastWeekEdits) && p.lastWeekEdits.length > 0
+    ? p.lastWeekEdits.map(e => {
+        if (e.type === "swap")    return `• User swapped "${e.from}" for "${e.to}" (${e.day}, ${e.block})`;
+        if (e.type === "add")     return `• User added "${e.to}" (${e.day}, ${e.block})`;
+        if (e.type === "remove")  return `• User removed "${e.from}" (${e.day}, ${e.block})`;
+        if (e.type === "reorder") return `• User reordered: ${e.note} (${e.day})`;
+        if (e.type === "edit")    return `• User edited exercise on ${e.day} (${e.block})`;
+        return null;
+      }).filter(Boolean).join("\n")
+    : null;
+
   return `You are an elite fitness coach designing a personalized weekly training and nutrition plan.
 
 User Profile:
@@ -108,7 +121,12 @@ User Profile:
 
 Previous Week Summary:
 - Last Week Plan: ${lastWeekPlan}
-- Last Week Feedback: ${lastWeekFeedback}
+- Last Week Feedback: ${lastWeekFeedback}${lastWeekEdits ? `
+
+User's Previous-Week Edits — These are deliberate preferences:
+${lastWeekEdits}
+
+IMPORTANT: Honor these preferences in the new plan. If the user swapped X for Y, prefer Y in the same block/day. If they removed an exercise, avoid bringing it back unless absolutely necessary. If they added an exercise, keep it (or a close variant) in the rotation.` : ""}
 
 ---
 
