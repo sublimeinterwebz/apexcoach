@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay,    setSelectedDay]    = useState(TODAY_IDX);
   const [completedToday, setCompletedToday] = useState(false);
+  const [dismissedSundayBanner, setDismissedSundayBanner] = useState(false);
 
   // ALL hooks must be BEFORE any early return (Rules of Hooks)
   useEffect(() => {
@@ -100,7 +101,6 @@ export default function Dashboard() {
 
   // Sunday = new week in Egypt. Show generate banner if it's Sunday and user has a plan.
   const isSunday = new Date().getDay() === 0;
-  const [dismissedSundayBanner, setDismissedSundayBanner] = useState(false);
   const showSundayBanner = isSunday && !!plan && !dismissedSundayBanner;
 
   return (
