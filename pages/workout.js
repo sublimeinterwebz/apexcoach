@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
-import { ExerciseRow, ExercisePicker, BLOCK_COLORS, BLOCK_LABELS, Icon, Button } from "../components/ui";
+import { ExerciseRow, ExercisePicker, ExerciseConfigSheet, BLOCK_COLORS, BLOCK_LABELS, Icon, Button } from "../components/ui";
 import ExerciseGif from "../components/ExerciseGif";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog, applyPlanEdit } from "../lib/firebase";
@@ -61,6 +61,7 @@ export default function Workout() {
   const [workoutLog,  setWorkoutLog]  = useState(null); // saved after finish
   const [completedLog, setCompletedLog] = useState(null);  // existing log from Firestore
   const [pickerState,  setPickerState]  = useState({ open: false, mode: null, block: null, exerciseIndex: null, dayIndex: null });
+  const [configState,  setConfigState]  = useState({ open: false, mode: null, block: null, exerciseIndex: null, dayIndex: null, exerciseName: "", initial: null });
   const timerRef = useRef(null), elapsedRef = useRef(null);
 
   // Sync from dashboard ?day= param
@@ -151,30 +152,60 @@ export default function Workout() {
     setPickerState({ open: true, mode: "add", block: blockKey, exerciseIndex: null, dayIndex: dayIdx });
   };
   const closePicker = () => setPickerState({ open: false, mode: null, block: null, exerciseIndex: null, dayIndex: null });
+  const closeConfig = () => setConfigState({ open: false, mode: null, block: null, exerciseIndex: null, dayIndex: null, exerciseName: "", initial: null });
 
+  // "Edit details" on existing exercise → open config directly
+  const openEditConfig = (dayIdx, blockKey, exerciseIdx) => {
+    const ex = weekPlan[dayIdx]?.blocks?.[blockKey]?.[exerciseIdx];
+    if (!ex) return;
+    setConfigState({
+      open: true, mode: "edit",
+      block: blockKey, exerciseIndex: exerciseIdx, dayIndex: dayIdx,
+      exerciseName: ex.name,
+      initial: ex,
+    });
+  };
+
+  // User picked an exercise from the DB — close picker, open config sheet to set sets/reps
   const handlePick = (picked) => {
     const { mode, block, exerciseIndex, dayIndex } = pickerState;
-    const day = weekPlan[dayIndex];
-    if (!day) { closePicker(); return; }
+    // For replace, pre-fill with the current exercise's sets/reps so user can keep or edit them
+    const current = mode === "replace" ? weekPlan[dayIndex]?.blocks?.[block]?.[exerciseIndex] : null;
+    closePicker();
+    setConfigState({
+      open: true, mode,
+      block, exerciseIndex, dayIndex,
+      exerciseName: picked.name,
+      initial: current ? { ...current, name: picked.name } : null,
+    });
+  };
 
-    if (mode === "replace") {
+  // Config sheet confirmed — write the exercise with its chosen sets/reps to the plan
+  const handleConfigConfirm = (values) => {
+    const { mode, block, exerciseIndex, dayIndex, exerciseName } = configState;
+    const day = weekPlan[dayIndex];
+    if (!day) { closeConfig(); return; }
+
+    if (mode === "edit") {
       const oldEx = day.blocks[block][exerciseIndex];
-      const newEx = { ...oldEx, name: picked.name }; // preserve sets/reps/rest
+      const newEx = { ...oldEx, ...values };
       const newBlocks = { ...day.blocks, [block]: day.blocks[block].map((e, i) => i === exerciseIndex ? newEx : e) };
       const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
-      persistPlanEdit(newWeek, { type: "swap", day: day.dayName || day.day, block, from: oldEx?.name, to: picked.name });
+      persistPlanEdit(newWeek, { type: "edit", day: day.dayName || day.day, block, from: oldEx.name, note: `Updated sets/reps for ${oldEx.name}` });
+    } else if (mode === "replace") {
+      const oldEx = day.blocks[block][exerciseIndex];
+      const newEx = { name: exerciseName, ...values };
+      const newBlocks = { ...day.blocks, [block]: day.blocks[block].map((e, i) => i === exerciseIndex ? newEx : e) };
+      const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
+      persistPlanEdit(newWeek, { type: "swap", day: day.dayName || day.day, block, from: oldEx?.name, to: exerciseName });
     } else if (mode === "add") {
-      const defaults = block === "main"      ? { sets: 3, reps: "8-10", restSeconds: 90 }
-                     : block === "accessory" ? { sets: 3, reps: "10-12", restSeconds: 75 }
-                     : block === "core"      ? { sets: 3, reps: "12-15", restSeconds: 60 }
-                     : {};
-      const newEx = { name: picked.name, ...defaults, notes: "" };
+      const newEx = { name: exerciseName, ...values };
       const existing = day.blocks[block] || [];
       const newBlocks = { ...day.blocks, [block]: [...existing, newEx] };
       const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
-      persistPlanEdit(newWeek, { type: "add", day: day.dayName || day.day, block, to: picked.name });
+      persistPlanEdit(newWeek, { type: "add", day: day.dayName || day.day, block, to: exerciseName });
     }
-    closePicker();
+    closeConfig();
   };
 
   const updateSet   = (si,f,v) => setAllSets(p=>{const n=p.map(s=>[...s]);n[exIdx][si]={...n[exIdx][si],[f]:v};return n;});
@@ -324,6 +355,7 @@ export default function Workout() {
               onRemove={handleRemoveExercise}
               onReplace={openPickerForReplace}
               onAdd={openPickerForAdd}
+              onEdit={openEditConfig}
               onMoveUp={(dIdx,block,exIdx) => handleMoveExercise(dIdx,block,exIdx,"up")}
               onMoveDown={(dIdx,block,exIdx) => handleMoveExercise(dIdx,block,exIdx,"down")}
             />
@@ -336,6 +368,20 @@ export default function Workout() {
         onClose={closePicker}
         onPick={handlePick}
         title={pickerState.mode === "replace" ? "Replace Exercise" : "Add Exercise"}
+      />
+      <ExerciseConfigSheet
+        isOpen={configState.open}
+        onClose={closeConfig}
+        onConfirm={handleConfigConfirm}
+        exerciseName={configState.exerciseName}
+        blockKey={configState.block}
+        initial={configState.initial}
+        title={
+          configState.mode === "edit"    ? "Edit Details" :
+          configState.mode === "replace" ? "Configure Replacement" :
+          "Add to Workout"
+        }
+        confirmLabel={configState.mode === "add" ? "Add Exercise" : "Save"}
       />
     </Screen>
   );
@@ -371,7 +417,7 @@ function RestView({ day, isToday }) {
 }
 
 // ── Workout View (preview) ─────────────────────────────
-function WorkoutView({ day, dayIndex, flat, loggable, isToday, onStart, completedLog, onRemove, onReplace, onAdd, onMoveUp, onMoveDown }) {
+function WorkoutView({ day, dayIndex, flat, loggable, isToday, onStart, completedLog, onRemove, onReplace, onAdd, onEdit, onMoveUp, onMoveDown }) {
   const isCompleted = !!completedLog;
 
   // Group exercises by block for editing
@@ -461,6 +507,7 @@ function WorkoutView({ day, dayIndex, flat, loggable, isToday, onStart, complete
                     isLast={idx === exercises.length - 1}
                     onReplace={() => onReplace(dayIndex, blockKey, idx)}
                     onRemove={() => onRemove(dayIndex, blockKey, idx)}
+                    onEdit={() => onEdit(dayIndex, blockKey, idx)}
                     onMoveUp={() => onMoveUp(dayIndex, blockKey, idx)}
                     onMoveDown={() => onMoveDown(dayIndex, blockKey, idx)}
                   />
