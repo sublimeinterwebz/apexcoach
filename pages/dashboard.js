@@ -75,8 +75,26 @@ export default function Dashboard() {
 
   const weekPlan = plan?.weekPlan || [];
   const dayData  = weekPlan[selectedDay] || null;
-  const macros   = plan?.nutrition?.macros   || null;
-  const calories = plan?.nutrition?.dailyCalories || null;
+
+  // TEMP DEBUG — remove after verifying
+  if (plan && typeof window !== "undefined") {
+    console.log("[dashboard] plan.nutrition:", plan.nutrition);
+  }
+
+  // Nutrition — resilient to schema variations (macros can be at top level or nested,
+  // sometimes calories is named differently, and mealPlans may have day-specific totals)
+  const nutrition = plan?.nutrition || null;
+  const macros    = nutrition?.macros || null;
+
+  // Today's calories may come from: mealPlans[today].totalCalories, mealPlans[today].meals totals,
+  // or the top-level dailyCalories. Fall back through these in order.
+  const todayMealPlan = nutrition?.mealPlans?.[selectedDay] || null;
+  const todayCalories = todayMealPlan?.totalCalories
+    || todayMealPlan?.meals?.reduce((s, m) => s + (m.calories || 0), 0)
+    || nutrition?.dailyCalories
+    || nutrition?.calories
+    || null;
+  const calories = todayCalories;
 
   const todayExCount = dayData?.blocks
     ? Object.values(dayData.blocks).flat().filter(e => !e.isHeader).length
@@ -162,7 +180,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── NUTRITION STRIP ── */}
-        {macros && (
+        {nutrition ? (
           <div style={{ margin:"16px 20px 120px", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <span style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700 }}>NUTRITION TODAY</span>
@@ -170,10 +188,10 @@ export default function Dashboard() {
             </div>
             <div style={{ display:"flex", gap:6 }}>
               {[
-                { label:"KCAL",    value:calories,      color:C.accent },
-                { label:"PROTEIN", value:macros.protein, color:"#00cfff" },
-                { label:"CARBS",   value:macros.carbs,   color:"#ffaa00" },
-                { label:"FAT",     value:macros.fat,     color:"#ff5e8a" },
+                { label:"KCAL",    value:calories || "—",                                       color:C.accent },
+                { label:"PROTEIN", value:(macros?.protein != null ? `${macros.protein}g` : "—"),color:"#00cfff" },
+                { label:"CARBS",   value:(macros?.carbs   != null ? `${macros.carbs}g`   : "—"),color:"#ffaa00" },
+                { label:"FAT",     value:((macros?.fat ?? macros?.fats) != null ? `${macros?.fat ?? macros?.fats}g` : "—"), color:"#ff5e8a" },
               ].map(m => (
                 <div key={m.label} style={{ flex:1, textAlign:"center", padding:"10px 4px", background:C.bgDeep, borderRadius:10 }}>
                   <div style={{ fontSize:16, fontWeight:800, color:m.color }}>{m.value}</div>
@@ -182,7 +200,13 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-        )}
+        ) : plan ? (
+          // Plan exists but nutrition is missing — diagnostic
+          <div style={{ margin:"16px 20px 120px", background:C.bgCard, border:`1px dashed ${C.border}`, borderRadius:16, padding:"14px 16px", textAlign:"center" }}>
+            <div style={{ fontSize:12, color:C.muted, marginBottom:6, fontWeight:600 }}>No nutrition data</div>
+            <div style={{ fontSize:11, color:C.dim, lineHeight:1.5 }}>Your plan is missing nutrition targets. Regenerate from the Coach tab to get daily macros.</div>
+          </div>
+        ) : null}
       </div>
       <BottomNav active="dashboard" router={router} />
     </Screen>
