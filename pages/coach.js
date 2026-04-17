@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
-import { FAB, Icon } from "../components/ui";
+import { FAB, Icon, Card, Chip, Button, SectionLabel, StatCell } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWeekLogs, getWeekFeedback, saveWeekPlan } from "../lib/firebase";
 
@@ -151,25 +151,21 @@ export default function Coach() {
 // ── Review Phase ───────────────────────────────────────
 function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, plannedWorkouts, completedWorkouts, consistency, totalVolume, totalSets, feedback, allExercises, currentWeek, dataLoading }) {
 
-  const feedbackColor = {
-    easy:"#00cfff", good:C.accent, hard:"#ff5e8a",
-  };
-  const energyColor = {
-    low:"#ff5e8a", normal:"#ffaa00", high:C.accent,
-  };
+  const feedbackColor = { easy:"#00cfff", good:C.accent, hard:"#ff5e8a" };
+  const energyColor   = { low:"#ff5e8a",  normal:"#ffaa00", high:C.accent };
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",padding:"52px 20px 140px",position:"relative",zIndex:1}}>
+      {/* Header */}
       <div style={{marginBottom:20}}>
         <div style={{fontSize:11,color:C.muted,letterSpacing:3,fontWeight:600,marginBottom:6}}>WEEK {currentWeek}</div>
         <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5}}>WEEKLY <span style={{color:C.accent}}>REVIEW</span></div>
       </div>
 
+      {/* Tab chips */}
       <div style={{display:"flex",gap:8,marginBottom:20}}>
         {["Overview","Sessions","Exercises"].map((label,i)=>(
-          <button key={i} onClick={()=>setPage(i)} style={{padding:"8px 16px",borderRadius:20,fontSize:12,fontWeight:700,background:page===i?C.accent:C.bgCard,border:`1.5px solid ${page===i?C.accent:C.border}`,color:page===i?"#0a0a0a":C.muted,cursor:"pointer",fontFamily:F}}>
-            {label}
-          </button>
+          <Chip key={i} label={label} active={page===i} onClick={()=>setPage(i)} />
         ))}
       </div>
 
@@ -179,75 +175,61 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
           <div style={{width:32,height:32,borderRadius:"50%",border:`2px solid ${C.border}`,borderTopColor:C.accent,animation:"spin 0.9s linear infinite"}}/>
         </div>
       ) : page===0 ? (
-
         // ── Overview ────────────────────────────────────
         <div style={{flex:1,display:"flex",flexDirection:"column",gap:12}}>
-          {/* Stats */}
-          <div style={{display:"flex",gap:10}}>
-            {[
-              {label:"SESSIONS",  value:`${completedWorkouts}/${plannedWorkouts}`, color:C.accent},
-              {label:"CONSISTENCY",value:`${consistency}%`,                        color:consistency>=80?C.accent:consistency>=50?"#ffaa00":"#ff5e8a"},
-              {label:"VOLUME",    value:`${Math.round(totalVolume/1000*10)/10}k`,  color:"#00cfff", unit:"kg"},
-            ].map(({label,value,color,unit})=>(
-              <div key={label} style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 10px",textAlign:"center"}}>
-                <div style={{fontSize:22,fontWeight:900,color,letterSpacing:-0.5}}>{value}<span style={{fontSize:10,color:C.dim,fontWeight:400}}>{unit||""}</span></div>
-                <div style={{fontSize:9,color:C.muted,letterSpacing:2,fontWeight:700,marginTop:4}}>{label}</div>
-              </div>
-            ))}
+          {/* Stats row */}
+          <div style={{display:"flex",gap:8}}>
+            <StatCell label="Sessions"    value={`${completedWorkouts}/${plannedWorkouts}`} color={C.accent} size="lg" />
+            <StatCell label="Consistency" value={`${consistency}%`}                         color={consistency>=80?C.accent:consistency>=50?"#ffaa00":"#ff5e8a"} size="lg" />
+            <StatCell label="Volume"      value={`${Math.round(totalVolume/1000*10)/10}k`}  color="#00cfff" size="lg" />
           </div>
 
-          {/* Feedback summary */}
+          {/* Feedback */}
           {feedback ? (
-            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.accent}`,borderRadius:16,padding:"16px"}}>
-              <div style={{fontSize:10,color:C.accent,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>YOUR FEEDBACK</div>
+            <Card padding="md" style={{borderLeft:`3px solid ${C.accent}`}}>
+              <SectionLabel color={C.accent} style={{marginBottom:12}}>YOUR FEEDBACK</SectionLabel>
               <div style={{display:"flex",gap:10}}>
-                <div style={{flex:1,background:C.bgDeep,borderRadius:12,padding:"12px",textAlign:"center"}}>
-                  <div style={{fontSize:10,color:C.muted,letterSpacing:1.5,fontWeight:600,marginBottom:6}}>DIFFICULTY</div>
-                  <div style={{fontSize:14,fontWeight:800,color:feedbackColor[feedback.difficulty]||C.text,textTransform:"uppercase"}}>{feedback.difficulty||"—"}</div>
-                </div>
-                <div style={{flex:1,background:C.bgDeep,borderRadius:12,padding:"12px",textAlign:"center"}}>
-                  <div style={{fontSize:10,color:C.muted,letterSpacing:1.5,fontWeight:600,marginBottom:6}}>ENERGY</div>
-                  <div style={{fontSize:14,fontWeight:800,color:energyColor[feedback.energy]||C.text,textTransform:"uppercase"}}>{feedback.energy||"—"}</div>
-                </div>
+                <StatCell label="Difficulty" value={(feedback.difficulty||"—").toUpperCase()} color={feedbackColor[feedback.difficulty]||C.text} size="md" />
+                <StatCell label="Energy"     value={(feedback.energy||"—").toUpperCase()}     color={energyColor[feedback.energy]||C.text}     size="md" />
               </div>
-            </div>
+            </Card>
           ) : (
-            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",textAlign:"center"}}>
-              <div style={{fontSize:13,color:C.dim}}>No feedback yet this week.<br/>Complete a workout to leave feedback.</div>
-            </div>
+            <Card padding="md" style={{textAlign:"center"}}>
+              <div style={{fontSize:13,color:C.dim,lineHeight:1.6}}>No feedback yet this week.<br/>Complete a workout to leave feedback.</div>
+            </Card>
           )}
 
           {/* Coach note */}
           {plan?.coachNote && (
-            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",flex:1}}>
-              <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:10}}>COACH NOTE</div>
-              <p style={{fontSize:13,color:C.muted,lineHeight:1.7}}>{plan.coachNote}</p>
+            <Card padding="md" style={{flex:1}}>
+              <SectionLabel style={{marginBottom:10}}>COACH NOTE</SectionLabel>
+              <p style={{fontSize:13,color:C.muted,lineHeight:1.7,margin:0}}>{plan.coachNote}</p>
               {plan.progression?.nextWeekFocus && (
-                <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
-                  <div style={{fontSize:10,color:C.dim,letterSpacing:2,fontWeight:700,marginBottom:6}}>NEXT WEEK FOCUS</div>
-                  <p style={{fontSize:12,color:C.dim,lineHeight:1.65}}>{plan.progression.nextWeekFocus}</p>
+                <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${C.border}`}}>
+                  <SectionLabel size="sm" color={C.dim} style={{marginBottom:6}}>NEXT WEEK FOCUS</SectionLabel>
+                  <p style={{fontSize:12,color:C.dim,lineHeight:1.65,margin:0}}>{plan.progression.nextWeekFocus}</p>
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
-          <button onClick={onGenerate} style={{padding:"16px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer",letterSpacing:0.5}}>
+          {/* Generate CTA */}
+          <Button variant="primary" size="lg" onClick={onGenerate}>
             GENERATE WEEK {currentWeek+1}
-          </button>
+          </Button>
         </div>
 
       ) : page===1 ? (
-
         // ── Sessions ────────────────────────────────────
         <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",overflowY:"auto"}}>
-            <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:14}}>SESSION LOG</div>
+          <Card padding="md" style={{flex:1,overflowY:"auto"}}>
+            <SectionLabel style={{marginBottom:14}}>SESSION LOG</SectionLabel>
             {plan?.weekPlan?.map((day,i)=>{
               const log = logs[i];
-              const isWorkout = day.type==="workout"||day.type==="hypertrophy"||day.type==="conditioning";
+              const isWorkout = day.type==="workout"||day.type==="hypertrophy"||day.type==="conditioning"||day.type==="strength";
               const completed = !!log;
               return (
-                <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i<6?`1px solid ${C.border}`:"none"}}>
+                <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i<(plan.weekPlan.length-1)?`1px solid ${C.border}`:"none"}}>
                   <div style={{width:36,height:36,borderRadius:10,background:completed?C.accentDim:C.bgDeep,border:`1.5px solid ${completed?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>
                     {completed?"✓":isWorkout?"○":"—"}
                   </div>
@@ -259,33 +241,34 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
                       <div style={{fontSize:11,color:C.dim,marginTop:2}}>{isWorkout?"Not completed":day.type}</div>
                     )}
                   </div>
-                  <div style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,flexShrink:0,
-                    background:completed?C.accentDim:C.bgDeep,
-                    border:`1px solid ${completed?C.accentBorder:C.border}`,
-                    color:completed?C.accent:C.dim,
-                  }}>{completed?"DONE":isWorkout?"MISSED":"REST"}</div>
+                  <Chip
+                    label={completed?"DONE":isWorkout?"MISSED":"REST"}
+                    active={completed}
+                    size="sm"
+                    color={completed?"accent":"neutral"}
+                    onClick={()=>{}}
+                  />
                 </div>
               );
             })}
-          </div>
+          </Card>
         </div>
 
       ) : (
-
         // ── Exercises ───────────────────────────────────
-        <div style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",overflowY:"auto"}}>
-          <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:14}}>PLANNED EXERCISES</div>
+        <Card padding="md" style={{flex:1,overflowY:"auto"}}>
+          <SectionLabel style={{marginBottom:14}}>PLANNED EXERCISES</SectionLabel>
           {allExercises.length===0 ? (
             <div style={{fontSize:13,color:C.dim,textAlign:"center",padding:"24px 0"}}>No plan generated yet</div>
           ) : allExercises.map(({name,sets,reps,day},i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"10px 0",borderBottom:i<allExercises.length-1?`1px solid ${C.border}`:"none"}}>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{name}</div>
-                <div style={{fontSize:11,color:C.dim,marginTop:2}}>{sets} sets · {reps} reps · {day}</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",textTransform:"capitalize"}}>{name}</div>
+                <div style={{fontSize:11,color:C.dim,marginTop:2}}>{sets} × {reps} · {day}</div>
               </div>
             </div>
           ))}
-        </div>
+        </Card>
       )}
     </div>
   );

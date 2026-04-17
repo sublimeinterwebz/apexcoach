@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
+import { Card, StatCell, SectionLabel, F, FW } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWorkoutLog } from "../lib/firebase";
 
 const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-const F = "'Lexend', sans-serif";
 
 const TYPE_COLOR = {
   strength:     C.accent,
@@ -76,13 +76,7 @@ export default function Dashboard() {
   const weekPlan = plan?.weekPlan || [];
   const dayData  = weekPlan[selectedDay] || null;
 
-  // TEMP DEBUG — remove after verifying
-  if (plan && typeof window !== "undefined") {
-    console.log("[dashboard] plan.nutrition:", plan.nutrition);
-  }
-
-  // Nutrition — resilient to schema variations (macros can be at top level or nested,
-  // sometimes calories is named differently, and mealPlans may have day-specific totals)
+  // Nutrition — resilient to schema variations
   const nutrition = plan?.nutrition || null;
   const macros    = nutrition?.macros || null;
 
@@ -181,31 +175,23 @@ export default function Dashboard() {
 
         {/* ── NUTRITION STRIP ── */}
         {nutrition ? (
-          <div style={{ margin:"16px 20px 120px", background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:16, padding:"14px 16px" }}>
+          <Card padding="md" style={{ margin:"16px 20px 120px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <span style={{ fontSize:10, color:C.muted, letterSpacing:2.5, fontWeight:700 }}>NUTRITION TODAY</span>
-              <button onClick={() => router.push("/nutrition")} style={{ background:"none", border:"none", fontSize:11, color:C.accent, cursor:"pointer", fontFamily:F, fontWeight:600, letterSpacing:1 }}>VIEW MEALS</button>
+              <SectionLabel>NUTRITION TODAY</SectionLabel>
+              <button onClick={() => router.push("/nutrition")} style={{ background:"none", border:"none", fontSize:11, color:C.accent, cursor:"pointer", fontFamily:F, fontWeight:FW.medium, letterSpacing:1 }}>VIEW MEALS</button>
             </div>
             <div style={{ display:"flex", gap:6 }}>
-              {[
-                { label:"KCAL",    value:calories || "—",                                       color:C.accent },
-                { label:"PROTEIN", value:(macros?.protein != null ? `${macros.protein}g` : "—"),color:"#00cfff" },
-                { label:"CARBS",   value:(macros?.carbs   != null ? `${macros.carbs}g`   : "—"),color:"#ffaa00" },
-                { label:"FAT",     value:((macros?.fat ?? macros?.fats) != null ? `${macros?.fat ?? macros?.fats}g` : "—"), color:"#ff5e8a" },
-              ].map(m => (
-                <div key={m.label} style={{ flex:1, textAlign:"center", padding:"10px 4px", background:C.bgDeep, borderRadius:10 }}>
-                  <div style={{ fontSize:16, fontWeight:800, color:m.color }}>{m.value}</div>
-                  <div style={{ fontSize:8, color:C.dim, letterSpacing:1, fontWeight:600, marginTop:2 }}>{m.label}</div>
-                </div>
-              ))}
+              <StatCell label="KCAL"    value={calories || "—"}                                                                color={C.accent}  size="md" />
+              <StatCell label="Protein" value={macros?.protein != null ? `${macros.protein}g` : "—"}                            color="#00cfff"   size="md" />
+              <StatCell label="Carbs"   value={macros?.carbs   != null ? `${macros.carbs}g`   : "—"}                            color="#ffaa00"   size="md" />
+              <StatCell label="Fat"     value={(macros?.fat ?? macros?.fats) != null ? `${macros?.fat ?? macros?.fats}g` : "—"} color="#ff5e8a"   size="md" />
             </div>
-          </div>
+          </Card>
         ) : plan ? (
-          // Plan exists but nutrition is missing — diagnostic
-          <div style={{ margin:"16px 20px 120px", background:C.bgCard, border:`1px dashed ${C.border}`, borderRadius:16, padding:"14px 16px", textAlign:"center" }}>
-            <div style={{ fontSize:12, color:C.muted, marginBottom:6, fontWeight:600 }}>No nutrition data</div>
+          <Card padding="md" variant="bordered" style={{ margin:"16px 20px 120px", textAlign:"center", borderStyle:"dashed" }}>
+            <div style={{ fontSize:12, color:C.muted, marginBottom:6, fontWeight:FW.medium }}>No nutrition data</div>
             <div style={{ fontSize:11, color:C.dim, lineHeight:1.5 }}>Your plan is missing nutrition targets. Regenerate from the Coach tab to get daily macros.</div>
-          </div>
+          </Card>
         ) : null}
       </div>
       <BottomNav active="dashboard" router={router} />

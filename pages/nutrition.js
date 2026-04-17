@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
+import { Card, StatCell, SectionLabel, DayPill, F, FS, FW } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan } from "../lib/firebase";
-
-const F = "'Lexend', sans-serif";
 
 export default function Nutrition() {
   const router  = useRouter();
@@ -65,27 +64,20 @@ export default function Nutrition() {
         ) : (
           <div style={{flex:1,overflowY:"auto",padding:"0 20px",paddingBottom:110}}>
             {/* Macro targets */}
-            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:"18px 16px",marginBottom:16}}>
-              <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:14}}>DAILY TARGETS</div>
+            <Card padding="lg" style={{marginBottom:16}}>
+              <SectionLabel style={{marginBottom:14}}>DAILY TARGETS</SectionLabel>
               <div style={{display:"flex",gap:8}}>
-                {[
-                  {label:"KCAL",    value:nutrition.dailyCalories||nutrition.calories, color:C.accent},
-                  {label:"PROTEIN", value:macros.protein, color:"#00cfff"},
-                  {label:"CARBS",   value:macros.carbs,   color:"#ffaa00"},
-                  {label:"FAT",     value:macros.fat||macros.fats, color:"#ff5e8a"},
-                ].map(m=>(
-                  <div key={m.label} style={{flex:1,textAlign:"center",background:C.bgDeep,borderRadius:14,padding:"12px 6px"}}>
-                    <div style={{fontSize:22,fontWeight:900,color:m.color,letterSpacing:-0.5}}>{m.value}</div>
-                    <div style={{fontSize:9,color:C.dim,letterSpacing:1.5,fontWeight:700,marginTop:4}}>{m.label}</div>
-                  </div>
-                ))}
+                <StatCell label="KCAL"    value={nutrition.dailyCalories||nutrition.calories||"—"}                           color={C.accent}  size="lg" />
+                <StatCell label="Protein" value={macros.protein != null ? `${macros.protein}g` : "—"}                        color="#00cfff"   size="lg" />
+                <StatCell label="Carbs"   value={macros.carbs   != null ? `${macros.carbs}g`   : "—"}                        color="#ffaa00"   size="lg" />
+                <StatCell label="Fat"     value={(macros.fat ?? macros.fats) != null ? `${macros.fat ?? macros.fats}g` : "—"} color="#ff5e8a"   size="lg" />
               </div>
-            </div>
+            </Card>
 
             {/* Tips */}
             {nutrition.tips?.length>0 && (
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.accent}`,borderRadius:16,padding:"14px 16px",marginBottom:16}}>
-                <div style={{fontSize:10,color:C.accent,letterSpacing:2.5,fontWeight:700,marginBottom:10}}>COACH NOTES</div>
+              <Card padding="md" style={{borderLeft:`3px solid ${C.accent}`,marginBottom:16}}>
+                <SectionLabel color={C.accent} style={{marginBottom:10}}>COACH NOTES</SectionLabel>
                 {nutrition.tips.map((tip,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:i<nutrition.tips.length-1?8:0}}>
                     <div style={{width:6,height:6,borderRadius:"50%",background:C.accent,marginTop:5,flexShrink:0}}/>
@@ -95,7 +87,7 @@ export default function Nutrition() {
                 {!nutrition.tips.length && nutrition.nutritionNotes && (
                   <p style={{fontSize:13,color:C.muted,lineHeight:1.65}}>{nutrition.nutritionNotes}</p>
                 )}
-              </div>
+              </Card>
             )}
 
             {/* Meals — daily selector, with fallbacks for older plan schemas */}
@@ -103,24 +95,17 @@ export default function Nutrition() {
               <>
                 {/* Day selector pills */}
                 <div style={{marginBottom:14}}>
-                  <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:10}}>SELECT DAY</div>
+                  <SectionLabel style={{marginBottom:10}}>SELECT DAY</SectionLabel>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {nutrition.mealPlans.map((day,i)=>{
-                      const isActive = selectedDay===i;
-                      const isTraining = day.type==="training";
-                      return (
-                        <button key={i} onClick={()=>{setSelectedDay(i);setExpanded(null);}} style={{
-                          padding:"6px 12px",borderRadius:20,border:`1.5px solid ${isActive?C.accent:C.border}`,
-                          background:isActive?C.accentDim:C.bgCard,
-                          color:isActive?C.accent:C.muted,
-                          fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F,
-                          display:"flex",alignItems:"center",gap:5,
-                        }}>
-                          {(day.dayName||`Day ${i+1}`).slice(0,3).toUpperCase()}
-                          {isTraining && <span style={{width:5,height:5,borderRadius:"50%",background:isActive?C.accent:C.dim,display:"inline-block"}}/>}
-                        </button>
-                      );
-                    })}
+                    {nutrition.mealPlans.map((day,i)=>(
+                      <DayPill
+                        key={i}
+                        label={(day.dayName||`Day ${i+1}`).slice(0,3).toUpperCase()}
+                        active={selectedDay===i}
+                        onClick={()=>{setSelectedDay(i);setExpanded(null);}}
+                        indicator={day.type==="training"}
+                      />
+                    ))}
                   </div>
                 </div>
 
@@ -128,18 +113,19 @@ export default function Nutrition() {
                 {(()=>{
                   const day = nutrition.mealPlans[selectedDay] || nutrition.mealPlans[0];
                   if (!day) return null;
+                  const isTrainingDay = day.type==="training";
                   return (
                     <>
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                        <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700}}>
-                          {(day.dayName||"").toUpperCase()} MEALS
-                        </div>
-                        <div style={{fontSize:10,padding:"3px 10px",borderRadius:20,
-                          background:day.type==="training"?C.accentDim:C.bgCard,
-                          border:`1px solid ${day.type==="training"?C.accentBorder:C.border}`,
-                          color:day.type==="training"?C.accent:C.muted,fontWeight:700
+                        <SectionLabel>{(day.dayName||"").toUpperCase()} MEALS</SectionLabel>
+                        <div style={{
+                          fontSize:10, padding:"3px 10px", borderRadius:20, fontWeight:FW.bold,
+                          background:isTrainingDay?C.accentDim:C.bgCard,
+                          border:`1px solid ${isTrainingDay?"rgba(196,255,0,0.28)":C.border}`,
+                          color:isTrainingDay?C.accent:C.muted,
+                          fontFamily:F,
                         }}>
-                          {day.type==="training"?"TRAINING DAY":"REST DAY"}
+                          {isTrainingDay?"TRAINING DAY":"REST DAY"}
                         </div>
                       </div>
                       {day.meals?.map((m,i)=>(
@@ -151,15 +137,14 @@ export default function Nutrition() {
               </>
             ) : nutrition.mealExamples?.length>0 ? (
               <>
-                <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>DAILY MEALS</div>
+                <SectionLabel style={{marginBottom:12}}>DAILY MEALS</SectionLabel>
                 {nutrition.mealExamples.map((m,i)=>(
                   <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
                 ))}
               </>
             ) : nutrition.meals ? (
-              // Legacy schema: { breakfast: {...}, lunch: {...}, dinner: {...}, snacks: [...] }
               <>
-                <div style={{fontSize:10,color:C.muted,letterSpacing:2.5,fontWeight:700,marginBottom:12}}>DAILY MEALS</div>
+                <SectionLabel style={{marginBottom:12}}>DAILY MEALS</SectionLabel>
                 {["breakfast","lunch","dinner"].filter(k=>nutrition.meals[k]).map(k=>(
                   <LegacyMealCard key={k} mealKey={k} meal={nutrition.meals[k]} isOpen={expanded===k} onToggle={()=>setExpanded(expanded===k?null:k)} />
                 ))}
