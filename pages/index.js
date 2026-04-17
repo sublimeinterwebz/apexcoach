@@ -108,12 +108,21 @@ export default function Home() {
           </div>
         ) : !authMode ? (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <button onClick={handleGoogle} style={{ ...btnStyle("outline"), gap:10 }}>
+            {/* Primary CTA — works for both new and returning Google users */}
+            <button onClick={handleGoogle} style={{ ...btnStyle("primary"), gap:10 }}>
               <span style={{ fontSize:16, fontWeight:700 }}>G</span> Continue with Google
             </button>
-            <button onClick={() => setAuthMode("signup")} style={btnStyle("ghost")}>Sign Up with Email</button>
-            <button onClick={() => setAuthMode("signin")} style={{ ...btnStyle("ghost"), border:`1px solid ${C.border}` }}>Sign In</button>
-            <button onClick={handleGoogle} style={{ ...btnStyle("primary"), marginTop:4 }}>Get Started</button>
+            {/* Returning user — email sign in */}
+            <button onClick={() => setAuthMode("signin")} style={{ ...btnStyle("outline") }}>
+              Sign In with Email
+            </button>
+            {/* Divider */}
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0" }}>
+              <div style={{ flex:1, height:1, background:C.border }}/>
+              <span style={{ fontSize:11, color:C.dim, fontFamily:F }}>NEW USER?</span>
+              <div style={{ flex:1, height:1, background:C.border }}/>
+            </div>
+            <button onClick={() => setAuthMode("signup")} style={{ ...btnStyle("ghost") }}>Create Account with Email</button>
             <button onClick={handleGuest} style={{ background:"none", border:"none", color:C.dim, fontSize:12, cursor:"pointer", fontFamily:F, textDecoration:"underline", textDecorationColor:C.border, marginTop:4 }}>
               Continue as Guest
             </button>
