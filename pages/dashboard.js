@@ -94,17 +94,51 @@ export default function Dashboard() {
     ? Object.values(dayData.blocks).flat().filter(e => !e.isHeader).length
     : (dayData?.exercises?.length || 0);
 
-  // Count all exercises across all blocks (not just main)
   const mainCount = dayData?.blocks
     ? Object.values(dayData.blocks).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
     : (dayData?.exercises?.length || 0);
+
+  // Sunday = new week in Egypt. Show generate banner if it's Sunday and user has a plan.
+  const isSunday = new Date().getDay() === 0;
+  const [dismissedSundayBanner, setDismissedSundayBanner] = useState(false);
+  const showSundayBanner = isSunday && !!plan && !dismissedSundayBanner;
 
   return (
     <Screen>
       <div style={{ flex:1, display:"flex", flexDirection:"column", position:"relative", zIndex:1 }}>
 
+        {/* ── SUNDAY NEW WEEK BANNER ── */}
+        {showSundayBanner && (
+          <div style={{
+            margin:"52px 20px 0",
+            background:"linear-gradient(135deg, rgba(196,255,0,0.12) 0%, rgba(196,255,0,0.05) 100%)",
+            border:`1.5px solid ${C.accentBorder}`,
+            borderRadius:18, padding:"16px 18px",
+          }}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:C.accent,letterSpacing:2.5,fontWeight:700,marginBottom:6}}>NEW WEEK</div>
+                <div style={{fontSize:16,fontWeight:900,color:C.white,marginBottom:6}}>Time to build Week {currentWeek+1}</div>
+                <div style={{fontSize:12,color:C.muted,lineHeight:1.5,marginBottom:14}}>Your AI coach is ready to generate next week's personalised plan based on your progress.</div>
+                <button
+                  onClick={() => router.push("/coach")}
+                  style={{background:C.accent,border:"none",borderRadius:10,padding:"10px 18px",fontFamily:F,fontSize:12,fontWeight:800,color:"#0a0a0a",cursor:"pointer",letterSpacing:0.5}}
+                >
+                  GENERATE WEEK {currentWeek+1} →
+                </button>
+              </div>
+              <button
+                onClick={() => setDismissedSundayBanner(true)}
+                style={{background:"none",border:"none",cursor:"pointer",color:C.dim,padding:4,flexShrink:0}}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── TOP BAR ── */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"52px 20px 0" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding: showSundayBanner ? "16px 20px 0" : "52px 20px 0" }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <button onClick={() => router.push("/profile")} style={{
               width:40, height:40, borderRadius:"50%",

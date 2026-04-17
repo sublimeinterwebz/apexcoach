@@ -50,9 +50,17 @@ export default function Coach() {
 
   if (loading) return null;
 
+  // Egypt week starts Sunday. Generate button is only active on Sunday.
+  const isSunday = new Date().getDay() === 0;
+
+  // Day-name → JS day number (0=Sun...6=Sat)
+  const DAY_NAME_JS = { Sunday:0, Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6 };
+  const todayJS = new Date().getDay();
+
   // ── Derived stats from real logs ─────────────────────
+  const REST_TYPES = new Set(["rest","recovery","active recovery"]);
   const completedLogs    = logs.filter(Boolean);
-  const plannedWorkouts  = plan?.weekPlan?.filter(d=>d.type==="workout").length || 0;
+  const plannedWorkouts  = plan?.weekPlan?.filter(d => !REST_TYPES.has((d.type||"").toLowerCase())).length || 0;
   const completedWorkouts= completedLogs.length;
   const consistency      = plannedWorkouts > 0 ? Math.round((completedWorkouts/plannedWorkouts)*100) : 0;
   const totalVolume      = completedLogs.reduce((a,log)=>a+(log.totalVolume||0), 0);
@@ -125,12 +133,9 @@ export default function Coach() {
     setGenStep(s===-1?GEN_STEPS.length:s);
   }, [progress]);
 
-  const allExercises = plan?.weekPlan?.filter(d=>d.type==="workout")
-    .flatMap(d=>(d.blocks?.main||d.exercises||[]).map(e=>({...e,day:d.focus||d.sessionLabel}))) || [];
-
   return (
     <Screen>
-      {phase==="review"     && <ReviewPhase page={page} setPage={setPage} onGenerate={startGeneration} plan={plan} logs={logs} completedLogs={completedLogs} plannedWorkouts={plannedWorkouts} completedWorkouts={completedWorkouts} consistency={consistency} totalVolume={totalVolume} totalSets={totalSets} feedback={feedback} allExercises={allExercises} currentWeek={currentWeek} dataLoading={dataLoading} />}
+      {phase==="review"     && <ReviewPhase page={page} setPage={setPage} onGenerate={startGeneration} plan={plan} logs={logs} completedLogs={completedLogs} plannedWorkouts={plannedWorkouts} completedWorkouts={completedWorkouts} consistency={consistency} totalVolume={totalVolume} totalSets={totalSets} feedback={feedback} currentWeek={currentWeek} dataLoading={dataLoading} isSunday={isSunday} todayJS={todayJS} DAY_NAME_JS={DAY_NAME_JS} />}
       {phase==="generating" && <GeneratingPhase progress={progress} currentStep={genStep} />}
       {phase==="ready"      && <ReadyPhase router={router} currentWeek={currentWeek} />}
       {phase==="review"     && (
@@ -149,10 +154,25 @@ export default function Coach() {
 }
 
 // ── Review Phase ───────────────────────────────────────
-function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, plannedWorkouts, completedWorkouts, consistency, totalVolume, totalSets, feedback, allExercises, currentWeek, dataLoading }) {
+function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, plannedWorkouts, completedWorkouts, consistency, totalVolume, totalSets, feedback, currentWeek, dataLoading, isSunday, todayJS, DAY_NAME_JS }) {
 
   const feedbackColor = { easy:"#00cfff", good:C.accent, hard:"#ff5e8a" };
   const energyColor   = { low:"#ff5e8a",  normal:"#ffaa00", high:C.accent };
+
+  // Determine status of each planned day
+  const getDayStatus = (day, log) => {
+    if (log) return "done";
+    const type = (day.type||"").toLowerCase();
+    if (type === "rest" || type === "recovery" || type === "active recovery") return "rest";
+    // Compare day name to today
+    const dayJS = DAY_NAME_JS[day.dayName];
+    if (dayJS === undefined) return "upcoming"; // can't determine, assume upcoming
+    if (dayJS === todayJS) return "today";
+    // In Egypt week (Sun=0), a day is "past" if its JS day < today, but wrap around:
+    // Week runs Sun→Sat (0→6). If dayJS < todayJS it's already passed this week.
+    if (dayJS < todayJS) return "missed";
+    return "upcoming";
+  };
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",padding:"52px 20px 140px",position:"relative",zIndex:1}}>
@@ -162,9 +182,9 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
         <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5}}>WEEKLY <span style={{color:C.accent}}>REVIEW</span></div>
       </div>
 
-      {/* Tab chips */}
+      {/* 2 tabs only */}
       <div style={{display:"flex",gap:8,marginBottom:20}}>
-        {["Overview","Sessions","Exercises"].map((label,i)=>(
+        {["Overview","Sessions"].map((label,i)=>(
           <Chip key={i} label={label} active={page===i} onClick={()=>setPage(i)} />
         ))}
       </div>
@@ -177,14 +197,12 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
       ) : page===0 ? (
         // ── Overview ────────────────────────────────────
         <div style={{flex:1,display:"flex",flexDirection:"column",gap:12}}>
-          {/* Stats row */}
           <div style={{display:"flex",gap:8}}>
             <StatCell label="Sessions"    value={`${completedWorkouts}/${plannedWorkouts}`} color={C.accent} size="lg" />
-            <StatCell label="Consistency" value={`${consistency}%`}                         color={consistency>=80?C.accent:consistency>=50?"#ffaa00":"#ff5e8a"} size="lg" />
-            <StatCell label="Volume"      value={`${Math.round(totalVolume/1000*10)/10}k`}  color="#00cfff" size="lg" />
+            <StatCell label="Consistency" value={`${consistency}%`} color={consistency>=80?C.accent:consistency>=50?"#ffaa00":"#ff5e8a"} size="lg" />
+            <StatCell label="Volume"      value={totalVolume>=1000?`${Math.round(totalVolume/100)/10}k`:(totalVolume||"0")} color="#00cfff" size="lg" />
           </div>
 
-          {/* Feedback */}
           {feedback ? (
             <Card padding="md" style={{borderLeft:`3px solid ${C.accent}`}}>
               <SectionLabel color={C.accent} style={{marginBottom:12}}>YOUR FEEDBACK</SectionLabel>
@@ -199,7 +217,6 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
             </Card>
           )}
 
-          {/* Coach note */}
           {plan?.coachNote && (
             <Card padding="md" style={{flex:1}}>
               <SectionLabel style={{marginBottom:10}}>COACH NOTE</SectionLabel>
@@ -213,61 +230,53 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
             </Card>
           )}
 
-          {/* Generate CTA */}
-          <Button variant="primary" size="lg" onClick={onGenerate}>
-            GENERATE WEEK {currentWeek+1}
-          </Button>
-        </div>
-
-      ) : page===1 ? (
-        // ── Sessions ────────────────────────────────────
-        <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
-          <Card padding="md" style={{flex:1,overflowY:"auto"}}>
-            <SectionLabel style={{marginBottom:14}}>SESSION LOG</SectionLabel>
-            {plan?.weekPlan?.map((day,i)=>{
-              const log = logs[i];
-              const isWorkout = day.type==="workout"||day.type==="hypertrophy"||day.type==="conditioning"||day.type==="strength";
-              const completed = !!log;
-              return (
-                <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i<(plan.weekPlan.length-1)?`1px solid ${C.border}`:"none"}}>
-                  <div style={{width:36,height:36,borderRadius:10,background:completed?C.accentDim:C.bgDeep,border:`1.5px solid ${completed?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>
-                    {completed?"✓":isWorkout?"○":"—"}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:completed?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{day.focus||day.sessionLabel||day.dayName}</div>
-                    {completed && log.totalVolume>0 ? (
-                      <div style={{fontSize:11,color:C.dim,marginTop:2}}>{log.totalSets} sets · {log.totalVolume.toLocaleString()}kg · {Math.floor((log.durationSecs||0)/60)}min</div>
-                    ) : (
-                      <div style={{fontSize:11,color:C.dim,marginTop:2}}>{isWorkout?"Not completed":day.type}</div>
-                    )}
-                  </div>
-                  <Chip
-                    label={completed?"DONE":isWorkout?"MISSED":"REST"}
-                    active={completed}
-                    size="sm"
-                    color={completed?"accent":"neutral"}
-                    onClick={()=>{}}
-                  />
-                </div>
-              );
-            })}
-          </Card>
+          {/* Generate button — only active on Sunday */}
+          {isSunday ? (
+            <Button variant="primary" size="lg" onClick={onGenerate}>
+              GENERATE WEEK {currentWeek+1}
+            </Button>
+          ) : (
+            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",textAlign:"center"}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.muted,marginBottom:4}}>NEXT PLAN AVAILABLE SUNDAY</div>
+              <div style={{fontSize:11,color:C.dim,lineHeight:1.5}}>New plans generate at the start of each week. Come back on Sunday to generate Week {currentWeek+1}.</div>
+            </div>
+          )}
         </div>
 
       ) : (
-        // ── Exercises ───────────────────────────────────
+        // ── Sessions ────────────────────────────────────
         <Card padding="md" style={{flex:1,overflowY:"auto"}}>
-          <SectionLabel style={{marginBottom:14}}>PLANNED EXERCISES</SectionLabel>
-          {allExercises.length===0 ? (
-            <div style={{fontSize:13,color:C.dim,textAlign:"center",padding:"24px 0"}}>No plan generated yet</div>
-          ) : allExercises.map(({name,sets,reps,day},i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"10px 0",borderBottom:i<allExercises.length-1?`1px solid ${C.border}`:"none"}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",textTransform:"capitalize"}}>{name}</div>
-                <div style={{fontSize:11,color:C.dim,marginTop:2}}>{sets} × {reps} · {day}</div>
+          <SectionLabel style={{marginBottom:14}}>SESSION LOG</SectionLabel>
+          {plan?.weekPlan?.map((day,i)=>{
+            const log = logs[i];
+            const status = getDayStatus(day, log);
+            const statusMeta = {
+              done:     { label:"DONE",     bg:C.accentDim,                  border:C.accentBorder,        color:C.accent },
+              today:    { label:"TODAY",    bg:"rgba(196,255,0,0.2)",        border:C.accentBorder,        color:C.accent },
+              upcoming: { label:"UPCOMING", bg:"rgba(0,207,255,0.12)",       border:"rgba(0,207,255,0.35)",color:"#00cfff" },
+              missed:   { label:"MISSED",   bg:"rgba(255,94,138,0.12)",      border:"rgba(255,94,138,0.35)",color:"#ff5e8a" },
+              rest:     { label:"REST",     bg:C.bgDeep,                     border:C.border,              color:C.dim },
+            };
+            const sm = statusMeta[status] || statusMeta.upcoming;
+            return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i<(plan.weekPlan.length-1)?`1px solid ${C.border}`:"none"}}>
+                <div style={{width:36,height:36,borderRadius:10,background:status==="done"?C.accentDim:C.bgDeep,border:`1.5px solid ${status==="done"?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,color:status==="done"?C.accent:C.dim}}>
+                  {status==="done"?"✓":status==="rest"?"—":"○"}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:status==="done"?C.text:status==="upcoming"||status==="today"?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{day.focus||day.sessionLabel||day.dayName}</div>
+                  {status==="done" && log?.totalVolume>0 ? (
+                    <div style={{fontSize:11,color:C.dim,marginTop:2}}>{log.totalSets} sets · {log.totalVolume.toLocaleString()}kg · {Math.floor((log.durationSecs||0)/60)}min</div>
+                  ) : (
+                    <div style={{fontSize:11,color:C.dim,marginTop:2}}>{day.dayName}{day.estimatedDuration?` · ${day.estimatedDuration}`:""}</div>
+                  )}
+                </div>
+                <div style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,flexShrink:0,background:sm.bg,border:`1px solid ${sm.border}`,color:sm.color}}>
+                  {sm.label}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </Card>
       )}
     </div>

@@ -19,6 +19,7 @@ const LEVEL_LABELS = {
 export default function ProfileSummary() {
   const router = useRouter();
   const { user, profile, loading } = useRequireAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   if (loading || !profile) return null;
 
@@ -125,7 +126,7 @@ export default function ProfileSummary() {
           variant="ghost"
           size="md"
           icon={<Icon name="logout" size={16} />}
-          onClick={handleLogout}
+          onClick={() => setShowLogoutConfirm(true)}
         >
           Log Out
         </Button>
@@ -136,6 +137,37 @@ export default function ProfileSummary() {
       </div>
 
       <BottomNav active="profile" router={router} />
+
+      {/* Logout confirmation modal */}
+      {showLogoutConfirm && (
+        <>
+          <div
+            onClick={() => setShowLogoutConfirm(false)}
+            style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",backdropFilter:"blur(4px)",zIndex:300}}
+          />
+          <div style={{
+            position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
+            width:"calc(100% - 32px)",maxWidth:390,
+            background:C.bgCard,border:`1px solid ${C.border}`,
+            borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",
+            zIndex:301,fontFamily:F,
+          }}>
+            <div style={{width:38,height:4,borderRadius:2,background:C.border,margin:"0 auto 20px"}}/>
+            <div style={{fontSize:18,fontWeight:900,color:C.white,marginBottom:8}}>Log Out?</div>
+            <div style={{fontSize:13,color:C.muted,lineHeight:1.6,marginBottom:24}}>
+              Your data is saved to your account and will be here when you sign back in.
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <Button variant="danger" size="md" onClick={handleLogout}>
+                Yes, Log Out
+              </Button>
+              <Button variant="outline" size="md" onClick={() => setShowLogoutConfirm(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </Screen>
   );
 }
