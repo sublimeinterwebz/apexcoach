@@ -190,7 +190,17 @@ export default function Dashboard() {
         </div>
 
         {/* ── NUTRITION STRIP ── */}
-        {nutrition ? (
+        {planLoading ? (
+          <Card padding="md" style={{ margin:"16px 20px 120px" }}>
+            <div style={{ display:"flex", gap:6 }}>
+              {[1,2,3,4].map(i => (
+                <div key={i} style={{ flex:1, height:52, borderRadius:10,
+                  background:"linear-gradient(90deg,#1c1d21 25%,#252629 50%,#1c1d21 75%)",
+                  backgroundSize:"800px 100%", animation:"shimmer 1.4s infinite linear" }} />
+              ))}
+            </div>
+          </Card>
+        ) : nutrition ? (
           <Card padding="md" style={{ margin:"16px 20px 120px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <SectionLabel>NUTRITION TODAY</SectionLabel>
@@ -324,10 +334,37 @@ function RestCard({ dayData, selectedDay, onViewWorkout }) {
 // ── Loading / Empty / No-Plan ──────────────────────────
 function LoadingCard() {
   return (
-    <div style={{ background:C.bgCard, borderRadius:20, padding:32, border:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", minHeight:200 }}>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width:32, height:32, borderRadius:"50%", border:`2px solid ${C.border}`, borderTopColor:C.accent, animation:"spin 0.9s linear infinite" }}/>
-    </div>
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: -400px 0; }
+          100% { background-position:  400px 0; }
+        }
+        .skel {
+          background: linear-gradient(90deg, #1c1d21 25%, #252629 50%, #1c1d21 75%);
+          background-size: 800px 100%;
+          animation: shimmer 1.4s infinite linear;
+          border-radius: 10px;
+        }
+      `}</style>
+      <div style={{ background: C.bgCard, borderRadius: 20, padding: 22, border: `1px solid ${C.border}` }}>
+        {/* Badge row */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+          <div className="skel" style={{ width: 90, height: 24, borderRadius: 20 }} />
+          <div className="skel" style={{ width: 60, height: 24, borderRadius: 20 }} />
+        </div>
+        {/* Session name lines */}
+        <div className="skel" style={{ width: "70%", height: 38, marginBottom: 10 }} />
+        <div className="skel" style={{ width: "50%", height: 38, marginBottom: 20 }} />
+        {/* Meta row */}
+        <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+          <div className="skel" style={{ width: 80, height: 16 }} />
+          <div className="skel" style={{ width: 100, height: 16 }} />
+        </div>
+        {/* CTA button */}
+        <div className="skel" style={{ width: "100%", height: 50, borderRadius: 14 }} />
+      </div>
+    </>
   );
 }
 function EmptyCard() {

@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `firestore-rules`)
+**Last updated:** 2026-04-18 (commit `stale-cache-skeleton-cleanup`)
 
 ---
 
@@ -135,10 +135,6 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 
 ## ⚠️ Known Issues / Tech Debt
 
-- **Profile cache can go stale** — `localStorage` `apex_profile_${uid}` is updated on save but not invalidated if Firestore changes from another device. Mitigation exists (cross-device sign-in fetches fresh) but same-device multi-tab could show stale data
-- **No loading skeleton on dashboard** — plan fetch briefly shows empty state before content. Low priority
-- **`review.js` is a redirect stub** — works but adds an extra redirect hop. Could be deleted with Next.js `redirects` in `next.config.js` instead
-- **Old `pages/profile.js`** — moved to `/profile/edit.js`. Confirmed no links to legacy path remain, but double-check if you add new deep links
 - **ExercisePicker filter chips** — equipment list is hardcoded. Should derive dynamically from exercises.json to stay in sync
 - **No TypeScript** — intentional tradeoff. If app grows past ~30 pages, reconsider
 
@@ -147,6 +143,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — Stale cache fix, dashboard skeleton, dead code removal
+
+- **Profile cache (#1):** `AuthContext` now opens a Firestore `onSnapshot` real-time listener on `users/{uid}` instead of a one-time `getDoc`. Any profile change from another tab or device propagates instantly to all open sessions. localStorage cache still used for zero-flicker initial load; listener confirms/overwrites on first fire
+- **Dashboard skeleton (#2):** Replaced the spinner `LoadingCard` with a shimmer skeleton that mirrors the actual card layout (badge row, two heading lines, meta row, CTA button). Nutrition strip also shows a 4-cell shimmer skeleton while the plan is loading
+- **Dead code (#3):** Deleted `pages/review.js` redirect stub. Added a permanent 308 server-side redirect (`/review` → `/coach`) in `next.config.js` — no JS required, faster and cleaner
+- **Dead code (#4):** `pages/profile.js` was already absent from the repo — confirmed clean
 
 ### 2026-04-18 — Firestore security rules
 
