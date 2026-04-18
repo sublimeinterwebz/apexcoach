@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-18 (commit `ee78234`)
+**Last updated:** 2026-04-18 (commit `intro-screen`)
 
 ---
 
@@ -111,7 +111,7 @@ Firebase Auth handles identity. Profile data lives in Firestore `users/{uid}` an
 
 **Routing logic in `pages/index.js`:**
 - `user && profile?.onboardingComplete` → `/dashboard`
-- `user && !profile?.onboardingComplete` → onboarding screens
+- `user && !profile?.onboardingComplete` → `"intro"` screen → `"onboarding"` screens
 - No user → welcome screen
 
 **Onboarding saves:** at the end of the final step, `saveUserProfile()` writes `{ ...form, onboardingComplete: true, currentWeek: 1 }` and kicks off `/api/generate-plan`.

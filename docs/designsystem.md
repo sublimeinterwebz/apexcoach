@@ -8,7 +8,7 @@
 - If a design convention changes (e.g. default card padding), update §5 and explain why in the release note at the bottom
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `ee78234`)
+**Last updated:** 2026-04-18 (commit `intro-screen`)
 
 ---
 

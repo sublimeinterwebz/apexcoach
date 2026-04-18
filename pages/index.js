@@ -57,7 +57,7 @@ export default function Home() {
   useEffect(() => {
     if (loading) return;
     if (user && profile?.onboardingComplete) router.replace("/dashboard");
-    else if (user && !profile?.onboardingComplete && screen === "welcome") setScreen("onboarding");
+    else if (user && !profile?.onboardingComplete && screen === "welcome") setScreen("intro");
   }, [user, profile, loading]);
 
   if (loading) return <LoadingScreen />;
@@ -145,7 +145,12 @@ export default function Home() {
     </Screen>
   );
 
-  // ── GENERATING ───────────────────────────────────────────
+  // ── ONBOARDING INTRO ─────────────────────────────────────
+  if (screen === "intro") return (
+    <IntroScreen user={user} onStart={() => setScreen("onboarding")} />
+  );
+
+  // ── GENERATING ─────────────────────────────────────────
   if (screen === "generating") return (
     <GeneratingScreen
       user={user} form={form} setProfile={setProfile}
@@ -208,6 +213,154 @@ export default function Home() {
         </button>
       </div>
     </Screen>
+  );
+}
+
+// ── Onboarding Intro Screen ───────────────────────────────
+function IntroScreen({ user, onStart }) {
+  // Derive first name from display name, email, or fallback
+  const firstName = (() => {
+    if (user?.displayName) return user.displayName.split(" ")[0];
+    if (user?.email) return user.email.split("@")[0];
+    return "There";
+  })();
+
+  const steps = [
+    { num: "01", title: "Answer a few questions", sub: "Your body, goals, and schedule", active: true },
+    { num: "02", title: "AI builds your plan",    sub: "Personalized workouts + nutrition", active: false },
+    { num: "03", title: "Start training",          sub: "Guided sessions, real-time coaching", active: false },
+  ];
+
+  return (
+    <div style={{
+      minHeight: "100dvh",
+      background: "#0a0a0a",
+      fontFamily: "'Lexend', sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Background gradient — dark olive glow at top matching screenshot */}
+      <div style={{
+        position: "absolute",
+        top: 0, left: 0, right: 0,
+        height: "55%",
+        background: "radial-gradient(ellipse 90% 60% at 30% 0%, rgba(40,52,12,0.95) 0%, rgba(20,28,8,0.7) 50%, transparent 100%)",
+        pointerEvents: "none",
+      }} />
+
+      {/* ── Header ── */}
+      <div style={{ padding: "52px 20px 0", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 36 }}>
+          {/* Logo badge */}
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: "#c4ff00",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 16, fontWeight: 900, color: "#0a0a0a", letterSpacing: -0.5 }}>A</span>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#ffffff", letterSpacing: 2.5 }}>APEXCOACH</span>
+        </div>
+
+        {/* Welcome heading */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 48, fontWeight: 900, color: "#ffffff", lineHeight: 1.08, letterSpacing: -1 }}>
+            Welcome,
+          </div>
+          <div style={{ fontSize: 48, fontWeight: 900, color: "#c4ff00", lineHeight: 1.08, letterSpacing: -1 }}>
+            {firstName}.
+          </div>
+        </div>
+
+        {/* Subtitle */}
+        <p style={{
+          fontSize: 14, color: "#9a9ca0", lineHeight: 1.65,
+          margin: "0 0 32px", maxWidth: 300,
+          fontWeight: 500,
+        }}>
+          Let&rsquo;s build a training plan that fits your body, your goals, and your week. Three quick steps.
+        </p>
+
+        {/* Section label */}
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: "#9a9ca0",
+          letterSpacing: 3, marginBottom: 16,
+        }}>
+          HOW IT WORKS
+        </div>
+
+        {/* Step cards */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {steps.map(({ num, title, sub, active }) => (
+            <div key={num} style={{
+              display: "flex", alignItems: "center", gap: 14,
+              background: "#1c1d21",
+              borderRadius: 16,
+              padding: "16px 18px",
+              border: "1.5px solid #2a2b30",
+            }}>
+              {/* Number badge */}
+              <div style={{
+                width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                background: active ? "#c4ff00" : "#2a2b30",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <span style={{
+                  fontSize: 15, fontWeight: 900,
+                  color: active ? "#0a0a0a" : "#5d5e62",
+                  letterSpacing: -0.3,
+                }}>
+                  {num}
+                </span>
+              </div>
+              {/* Text */}
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#ffffff", marginBottom: 3, lineHeight: 1.2 }}>
+                  {title}
+                </div>
+                <div style={{ fontSize: 12, color: "#9a9ca0", fontWeight: 500 }}>
+                  {sub}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Fixed bottom CTA ── */}
+      <div style={{
+        position: "fixed", bottom: 0, left: 0, right: 0,
+        padding: "16px 20px 36px",
+        background: "linear-gradient(to top, #0a0a0a 70%, transparent)",
+        zIndex: 10,
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+      }}>
+        <button
+          onClick={onStart}
+          style={{
+            width: "100%", maxWidth: 400,
+            padding: "18px 24px",
+            background: "#c4ff00",
+            border: "none", borderRadius: 100,
+            fontSize: 16, fontWeight: 800,
+            color: "#0a0a0a", fontFamily: "'Lexend', sans-serif",
+            cursor: "pointer", letterSpacing: 0.2,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          }}
+        >
+          Build My Plan &nbsp;→
+        </button>
+        <div style={{ fontSize: 12, color: "#5d5e62", fontWeight: 500, textAlign: "center" }}>
+          You can adjust anything later in your profile
+        </div>
+      </div>
+
+      {/* Spacer so cards don't hide behind fixed button */}
+      <div style={{ height: 140 }} />
+    </div>
   );
 }
 

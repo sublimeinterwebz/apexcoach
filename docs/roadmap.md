@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `ee78234`)
+**Last updated:** 2026-04-18 (commit `intro-screen`)
 
 ---
 
@@ -144,6 +144,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — Onboarding intro screen
+
+- Added `IntroScreen` component that sits between sign-in and the 4-step onboarding flow
+- New users see a personalised welcome ("Welcome, [FirstName]."), a 3-step "How It Works" breakdown, and a "Build My Plan →" CTA before entering onboarding questions
+- First name resolved from `user.displayName` → `user.email` prefix → fallback "There"
+- Routing updated: `screen === "welcome"` now transitions to `"intro"` instead of directly to `"onboarding"`; "Build My Plan" button transitions to `"onboarding"`
 
 ### 2026-04-18 — Coach accuracy + Sunday gating
 
