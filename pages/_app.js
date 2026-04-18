@@ -1,6 +1,7 @@
 import "../styles/globals.css";
 import Head from "next/head";
 import { AuthProvider } from "../lib/AuthContext";
+import InstallPrompt from "../components/ui/InstallPrompt";
 
 export default function App({ Component, pageProps }) {
   return (
@@ -46,6 +47,7 @@ export default function App({ Component, pageProps }) {
         </noscript>
       </Head>
       <Component {...pageProps} />
+      <InstallPrompt />
     </AuthProvider>
   );
 }

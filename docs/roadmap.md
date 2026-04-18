@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `fix-nutrition-training-indicator`)
+**Last updated:** 2026-04-18 (commit `install-prompt`)
 
 ---
 
@@ -30,6 +30,10 @@
 Grouped by milestone. Most recent commits at the top within each section.
 
 ### Q2 2026 — UI Refactor & Coach Intelligence
+
+| Item                                                        | Commit     |
+|-------------------------------------------------------------|------------|
+| Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
 
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
@@ -88,7 +92,6 @@ Priority order within each tier.
 
 ### Tier 1 — Next Up
 
-- **Add to Homescreen prompt** — banner detecting iOS/Android, guide user through PWA install steps. iOS requires Safari → Share → Add to Home Screen (no native prompt), Android gets `beforeinstallprompt` event
 - **Firestore security rules** — draft + deploy. Currently rules are permissive (anyone authenticated can read/write own data, but no validation). Need per-path rules for `users/{uid}/**` scoped to request.auth.uid
 - **Push notifications (FCM) — Phase 1 event-driven** — workout reminders, new week ready. iOS requires home-screen install first. Needs FCM token capture + Firestore storage + server send via Cloud Function
 
@@ -144,6 +147,15 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — Add to Homescreen prompt
+
+- `InstallPrompt` component in `components/ui/` mounted globally in `_app.js`
+- iOS: detects Safari UA, shows step-by-step guide (Share → Add to Home Screen → Add)
+- Android: captures `beforeinstallprompt`, shows native install button
+- Skips if already in standalone mode (already installed)
+- One-time dismiss stored in `apex_install_dismissed` localStorage key
+- Slides up from bottom with backdrop after 2.5s page settle delay
 
 ### 2026-04-18 — Fix: nutrition page training day indicator
 
