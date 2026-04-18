@@ -141,7 +141,7 @@ export default function InstallPrompt() {
             <div style={{ display: "flex", flexDirection: "column", gap: S.md }}>
               {[
                 { n: "1", text: "Tap the Share button in Safari", icon: ShareIcon },
-                { n: "2", text: "Scroll down and tap "Add to Home Screen"", icon: AddIcon },
+                { n: "2", text: "Scroll down and tap \u201cAdd to Home Screen\u201d", icon: AddIcon },
                 { n: "3", text: "Tap Add in the top-right corner", icon: CheckIcon },
               ].map(({ n, text, icon: Ico }) => (
                 <div key={n} style={{ display: "flex", alignItems: "center", gap: 10 }}>
