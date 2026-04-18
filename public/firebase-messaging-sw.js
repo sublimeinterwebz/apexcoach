@@ -1,5 +1,3 @@
-// Firebase Cloud Messaging background handler
-// Must live at /firebase-messaging-sw.js (root of domain) for FCM to find it
 importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js');
 
@@ -14,29 +12,21 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background push messages (app not in foreground)
+// Background handler — fires when no app window is focused.
+// We always show a system notification here; the foreground onMessage
+// handler in useFCM.js is disabled to prevent double-notification.
 messaging.onBackgroundMessage((payload) => {
-  // Check if the app is already open and focused — if so, skip the system notification
-  // because the foreground onMessage handler in useFCM.js will show the in-app toast
-  self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-    const appIsOpen = clients.some(
-      (c) => c.url.includes(self.location.origin) && c.visibilityState === "visible"
-    );
-    if (appIsOpen) return; // foreground handler takes over
-
-    const title = payload.notification?.title || "ApexCoach";
-    const body  = payload.notification?.body  || "";
-    self.registration.showNotification(title, {
-      body,
-      icon:  "/icons/icon-192.png",
-      badge: "/icons/icon-96.png",
-      data:  payload.data || {},
-      vibrate: [200, 100, 200],
-    });
+  const title = payload.notification?.title || 'ApexCoach';
+  const body  = payload.notification?.body  || '';
+  self.registration.showNotification(title, {
+    body,
+    icon:  '/icons/icon-192.png',
+    badge: '/icons/icon-96.png',
+    data:  payload.data || {},
+    vibrate: [200, 100, 200],
   });
 });
 
-// Clicking the notification — open or focus the app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.link || '/dashboard';
