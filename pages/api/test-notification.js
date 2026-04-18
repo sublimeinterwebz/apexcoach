@@ -1,6 +1,7 @@
 // Dev/test endpoint — sends a push notification to the calling user's stored FCM token.
 // Usage: GET /api/test-notification?uid=<firebase_uid>
 
+import "../../lib/firebaseAdmin"; // triggers initAdmin()
 import admin from "firebase-admin";
 
 export default async function handler(req, res) {
