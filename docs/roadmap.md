@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `install-prompt`)
+**Last updated:** 2026-04-18 (commit `firestore-rules`)
 
 ---
 
@@ -34,6 +34,7 @@ Grouped by milestone. Most recent commits at the top within each section.
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
 | Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
+| Firestore security rules — `users/{uid}/**` scoped to `request.auth.uid`. Rules file was already in repo; added `.firebaserc`, GitHub Action (`.github/workflows/deploy-firestore-rules.yml`) to auto-deploy on push. **Needs `FIREBASE_TOKEN` GitHub secret to activate** — see setup note below | `firestore-rules` |
 
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
@@ -92,7 +93,6 @@ Priority order within each tier.
 
 ### Tier 1 — Next Up
 
-- **Firestore security rules** — draft + deploy. Currently rules are permissive (anyone authenticated can read/write own data, but no validation). Need per-path rules for `users/{uid}/**` scoped to request.auth.uid
 - **Push notifications (FCM) — Phase 1 event-driven** — workout reminders, new week ready. iOS requires home-screen install first. Needs FCM token capture + Firestore storage + server send via Cloud Function
 
 ### Tier 2 — After Tier 1
@@ -147,6 +147,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — Firestore security rules
+
+- Rules file (`firestore.rules`) already existed with correct `users/{uid}/**` → `request.auth.uid` scoping
+- Added `.firebaserc` pointing to `apexcoach-be717`
+- Added `.github/workflows/deploy-firestore-rules.yml` — auto-deploys rules to Firebase whenever `firestore.rules` changes on `main`
+- **One-time setup required:** Add `FIREBASE_TOKEN` secret to GitHub repo. Generate it by running `firebase login:ci` locally, then paste the token at `github.com/sublimeinterwebz/apexcoach/settings/secrets/actions`
 
 ### 2026-04-18 — Add to Homescreen prompt
 
