@@ -1,7 +1,14 @@
 import "../styles/globals.css";
 import Head from "next/head";
-import { AuthProvider } from "../lib/AuthContext";
+import { AuthProvider, useAuth } from "../lib/AuthContext";
 import InstallPrompt from "../components/ui/InstallPrompt";
+import { useFCM } from "../lib/useFCM";
+
+function FCMProvider() {
+  const { user } = useAuth();
+  useFCM(user);
+  return null;
+}
 
 export default function App({ Component, pageProps }) {
   return (
@@ -46,6 +53,7 @@ export default function App({ Component, pageProps }) {
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&display=swap" />
         </noscript>
       </Head>
+      <FCMProvider />
       <Component {...pageProps} />
       <InstallPrompt />
     </AuthProvider>

@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `stale-cache-skeleton-cleanup`)
+**Last updated:** 2026-04-18 (commit `fcm-push-phase1`)
 
 ---
 
@@ -35,6 +35,7 @@ Grouped by milestone. Most recent commits at the top within each section.
 |-------------------------------------------------------------|------------|
 | Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
 | Firestore security rules — `users/{uid}/**` scoped to `request.auth.uid`. Rules file was already in repo; added `.firebaserc`, GitHub Action (`.github/workflows/deploy-firestore-rules.yml`) to auto-deploy on push. **Needs `FIREBASE_TOKEN` GitHub secret to activate** — see setup note below | `firestore-rules` |
+| Push notifications (FCM) — Phase 1 event-driven. Client: permission request + token capture (`lib/useFCM.js`), token stored in `users/{uid}.fcmToken`. Server: `lib/firebaseAdmin.js` + notification send after plan generation. Background handler in `public/firebase-messaging-sw.js`. **Needs 2 env vars in Vercel** — `NEXT_PUBLIC_FIREBASE_VAPID_KEY` + `FIREBASE_SERVICE_ACCOUNT` | `fcm-push-phase1` |
 
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
@@ -93,7 +94,7 @@ Priority order within each tier.
 
 ### Tier 1 — Next Up
 
-- **Push notifications (FCM) — Phase 1 event-driven** — workout reminders, new week ready. iOS requires home-screen install first. Needs FCM token capture + Firestore storage + server send via Cloud Function
+- **Push notifications — Phase 2 scheduled** — cron-job.org or Firebase Cloud Functions to send Sunday generate-plan reminder, daily workout nudge
 
 ### Tier 2 — After Tier 1
 
@@ -143,6 +144,16 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — FCM Push Notifications Phase 1
+
+- `public/firebase-messaging-sw.js` — FCM background service worker (handles push when app not in foreground, notification click opens `/dashboard`)
+- `lib/useFCM.js` — client hook: requests permission once per session, captures FCM token via VAPID, stores in `users/{uid}.fcmToken`
+- `lib/firebaseAdmin.js` — server-side `sendPushNotification()` using Firebase Admin SDK
+- `pages/_app.js` — mounts `FCMProvider` inside `AuthProvider` so hook runs after auth resolves
+- `pages/api/generate-plan.js` — fires "New plan ready 💪" push after Gemini returns a plan (fire-and-forget, never blocks the response)
+- **Env vars required in Vercel before notifications send:** `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase Console → Project Settings → Cloud Messaging → Web Push certificates) + `FIREBASE_SERVICE_ACCOUNT` (Firebase Console → Project Settings → Service accounts → Generate new private key → paste JSON string)
+- Gracefully no-ops if env vars missing — app never crashes without them
 
 ### 2026-04-18 — Stale cache fix, dashboard skeleton, dead code removal
 

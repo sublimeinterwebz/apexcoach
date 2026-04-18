@@ -170,6 +170,9 @@ Produced by onboarding and editable via `/profile/edit`. Gemini reads this at pl
   sleepHours: "7",
   stressLevel: "medium",                // "low" | "medium" | "high"
 
+  // Push notifications
+  fcmToken: "xxxxxxx",                  // FCM registration token — written by useFCM hook, read by generate-plan API
+
   // Cached copy of most recent plan (for fast dashboard reads)
   plan: { /* same shape as plans/week_N below */ },
 }

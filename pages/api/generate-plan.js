@@ -291,6 +291,21 @@ export default async function handler(req, res) {
       const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
       const plan  = JSON.parse(clean);
       console.log("Success:", model);
+
+      // Fire-and-forget push notification — non-blocking, never fails the response
+      const fcmToken = profile?.fcmToken;
+      const week     = (profile?.currentWeek || 0) + 1;
+      if (fcmToken) {
+        import("../../lib/firebaseAdmin")
+          .then(({ sendPushNotification }) => sendPushNotification({
+            token: fcmToken,
+            title: "New plan ready 💪",
+            body:  `Week ${week} training plan is ready. Let's go.`,
+            link:  "/dashboard",
+          }))
+          .catch(() => {});
+      }
+
       return res.status(200).json(plan);
     } catch (e) {
       console.error(model, e.message);
