@@ -12,17 +12,22 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Background handler — fires when no app window is focused.
-// We always show a system notification here; the foreground onMessage
-// handler in useFCM.js is disabled to prevent double-notification.
+// Data-only messages — only our handler runs, so no double-display.
+// Payload shape: { data: { title, body, link } }
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'ApexCoach';
-  const body  = payload.notification?.body  || '';
+  const data  = payload.data || {};
+  const title = data.title || 'ApexCoach';
+  const body  = data.body  || '';
+  const link  = data.link  || '/dashboard';
+
   self.registration.showNotification(title, {
     body,
     icon:  '/icons/icon-192.png',
     badge: '/icons/icon-96.png',
-    data:  payload.data || {},
+    data:  { link },
+    // Dedup tag — if a second copy arrives, it replaces instead of stacking
+    tag:   'apexcoach-notification',
+    renotify: false,
     vibrate: [200, 100, 200],
   });
 });
