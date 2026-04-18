@@ -9,6 +9,7 @@ export default function Nutrition() {
   const router  = useRouter();
   const { user, profile, loading } = useRequireAuth();
   const [nutrition,   setNutrition]   = useState(null);
+  const [weekPlan,    setWeekPlan]    = useState([]);
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
   // Default to today's day index (Mon=0 ... Sun=6). Clamped when mealPlans is shorter.
@@ -32,6 +33,7 @@ export default function Nutrition() {
       try {
         const p = profile?.plan || await getWeekPlan(user.uid, profile?.currentWeek||1);
         if (p?.nutrition) setNutrition(p.nutrition);
+        if (p?.weekPlan)  setWeekPlan(p.weekPlan);
       } catch(e) { console.error(e); }
       setPlanLoading(false);
     }
@@ -93,44 +95,57 @@ export default function Nutrition() {
             {/* Meals — daily selector, with fallbacks for older plan schemas */}
             {nutrition.mealPlans?.length > 0 ? (
               <>
-                {/* Day selector pills */}
-                <div style={{marginBottom:14}}>
-                  <SectionLabel style={{marginBottom:10}}>SELECT DAY</SectionLabel>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {nutrition.mealPlans.map((day,i)=>(
-                      <DayPill
-                        key={i}
-                        label={(day.dayName||`Day ${i+1}`).slice(0,3).toUpperCase()}
-                        active={selectedDay===i}
-                        onClick={()=>{setSelectedDay(i);setExpanded(null);}}
-                        indicator={day.type==="training"}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Selected day meals */}
+                {/* Build canonical training-day set from weekPlan (same source workout page uses).
+                    mealPlans[].type is AI-generated independently and can be inconsistent —
+                    e.g. Saturday may be marked "rest" in mealPlans but "strength" in weekPlan. */}
                 {(()=>{
-                  const day = nutrition.mealPlans[selectedDay] || nutrition.mealPlans[0];
-                  if (!day) return null;
-                  const isTrainingDay = day.type==="training";
+                  const trainingNames = weekPlan.length > 0
+                    ? new Set(weekPlan.filter(d => d.type !== "rest" && d.type !== "recovery").map(d => d.dayName))
+                    : null;
+                  const isTraining = (day) => trainingNames ? trainingNames.has(day.dayName) : day.type === "training";
                   return (
                     <>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                        <SectionLabel>{(day.dayName||"").toUpperCase()} MEALS</SectionLabel>
-                        <div style={{
-                          fontSize:10, padding:"3px 10px", borderRadius:20, fontWeight:FW.bold,
-                          background:isTrainingDay?C.accentDim:C.bgCard,
-                          border:`1px solid ${isTrainingDay?"rgba(196,255,0,0.28)":C.border}`,
-                          color:isTrainingDay?C.accent:C.muted,
-                          fontFamily:F,
-                        }}>
-                          {isTrainingDay?"TRAINING DAY":"REST DAY"}
+                      {/* Day selector pills */}
+                      <div style={{marginBottom:14}}>
+                        <SectionLabel style={{marginBottom:10}}>SELECT DAY</SectionLabel>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          {nutrition.mealPlans.map((day,i)=>(
+                            <DayPill
+                              key={i}
+                              label={(day.dayName||`Day ${i+1}`).slice(0,3).toUpperCase()}
+                              active={selectedDay===i}
+                              onClick={()=>{setSelectedDay(i);setExpanded(null);}}
+                              indicator={isTraining(day)}
+                            />
+                          ))}
                         </div>
                       </div>
-                      {day.meals?.map((m,i)=>(
-                        <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
-                      ))}
+
+                      {/* Selected day meals */}
+                      {(()=>{
+                        const day = nutrition.mealPlans[selectedDay] || nutrition.mealPlans[0];
+                        if (!day) return null;
+                        const isTrainingDay = isTraining(day);
+                        return (
+                          <>
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                              <SectionLabel>{(day.dayName||"").toUpperCase()} MEALS</SectionLabel>
+                              <div style={{
+                                fontSize:10, padding:"3px 10px", borderRadius:20, fontWeight:FW.bold,
+                                background:isTrainingDay?C.accentDim:C.bgCard,
+                                border:`1px solid ${isTrainingDay?"rgba(196,255,0,0.28)":C.border}`,
+                                color:isTrainingDay?C.accent:C.muted,
+                                fontFamily:F,
+                              }}>
+                                {isTrainingDay?"TRAINING DAY":"REST DAY"}
+                              </div>
+                            </div>
+                            {day.meals?.map((m,i)=>(
+                              <MealCard key={i} idx={i} meal={m} isOpen={expanded===i} onToggle={()=>setExpanded(expanded===i?null:i)} />
+                            ))}
+                          </>
+                        );
+                      })()}
                     </>
                   );
                 })()}

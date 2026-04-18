@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `intro-screen`)
+**Last updated:** 2026-04-18 (commit `fix-nutrition-training-indicator`)
 
 ---
 
@@ -144,6 +144,11 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — Fix: nutrition page training day indicator
+
+- **Bug:** DayPill indicator dots and TRAINING DAY/REST DAY badge on `/nutrition` were driven by `mealPlans[].type` (AI-generated independently from the training schedule). Gemini sometimes returns `type: "rest"` for the last training day (e.g. Saturday) in `mealPlans` even when `weekPlan` correctly marks it as a training session
+- **Fix:** Nutrition page now loads `weekPlan` alongside `nutrition`, builds a canonical `Set` of training day names (any day where `type !== "rest"` and `type !== "recovery"`), and uses that set for both the pill indicator and the day badge — exactly the same source of truth as the workout page. Falls back to `mealPlans[].type` when `weekPlan` is unavailable (e.g. legacy plans)
 
 ### 2026-04-18 — Onboarding intro screen
 
