@@ -16,14 +16,23 @@ const messaging = firebase.messaging();
 
 // Handle background push messages (app not in foreground)
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'ApexCoach';
-  const body  = payload.notification?.body  || '';
-  self.registration.showNotification(title, {
-    body,
-    icon:  '/icons/icon-192.png',
-    badge: '/icons/icon-96.png',
-    data:  payload.data || {},
-    vibrate: [200, 100, 200],
+  // Check if the app is already open and focused — if so, skip the system notification
+  // because the foreground onMessage handler in useFCM.js will show the in-app toast
+  self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+    const appIsOpen = clients.some(
+      (c) => c.url.includes(self.location.origin) && c.visibilityState === "visible"
+    );
+    if (appIsOpen) return; // foreground handler takes over
+
+    const title = payload.notification?.title || "ApexCoach";
+    const body  = payload.notification?.body  || "";
+    self.registration.showNotification(title, {
+      body,
+      icon:  "/icons/icon-192.png",
+      badge: "/icons/icon-96.png",
+      data:  payload.data || {},
+      vibrate: [200, 100, 200],
+    });
   });
 });
 

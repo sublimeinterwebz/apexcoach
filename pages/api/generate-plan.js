@@ -293,12 +293,12 @@ export default async function handler(req, res) {
       console.log("Success:", model);
 
       // Fire-and-forget push notification — non-blocking, never fails the response
-      const fcmToken = profile?.fcmToken;
-      const week     = (profile?.currentWeek || 0) + 1;
-      if (fcmToken) {
+      const fcmTokens = profile?.fcmTokens || (profile?.fcmToken ? [profile.fcmToken] : []);
+      const week      = (profile?.currentWeek || 0) + 1;
+      if (fcmTokens.length) {
         import("../../lib/firebaseAdmin")
           .then(({ sendPushNotification }) => sendPushNotification({
-            token: fcmToken,
+            tokens: fcmTokens,
             title: "New plan ready 💪",
             body:  `Week ${week} training plan is ready. Let's go.`,
             link:  "/dashboard",

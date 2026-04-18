@@ -171,7 +171,7 @@ Produced by onboarding and editable via `/profile/edit`. Gemini reads this at pl
   stressLevel: "medium",                // "low" | "medium" | "high"
 
   // Push notifications
-  fcmToken: "xxxxxxx",                  // FCM registration token — written by useFCM hook, read by generate-plan API
+  fcmTokens: ["token_browser", "token_pwa"],  // per-device FCM tokens — arrayUnion, one per registered client
 
   // Cached copy of most recent plan (for fast dashboard reads)
   plan: { /* same shape as plans/week_N below */ },
