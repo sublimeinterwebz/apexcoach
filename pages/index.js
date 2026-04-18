@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Screen, btnStyle, inputStyle, Label, RadioCard, C } from "../components/shared";
 import ExerciseGif from "../components/ExerciseGif";
+import ExerciseConfigSheet from "../components/ui/ExerciseConfigSheet";
 import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile, saveWeekPlan } from "../lib/firebase";
 import { useAuth } from "../lib/AuthContext";
 
@@ -449,6 +450,7 @@ function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCom
   const [committing,   setCommitting]   = useState(false);
   const [adjustCount,  setAdjustCount]  = useState(0);
   const [expandedDay,  setExpandedDay]  = useState(null);
+  const [editTarget,   setEditTarget]   = useState(null); // { dayIdx, blockKey, exIdx, ex }
 
   const weekPlan = plan?.weekPlan || [];
   const macros   = plan?.nutrition?.macros || {};
@@ -557,8 +559,16 @@ function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCom
                                       <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{ex.name}</div>
                                       {ex.notes && <div style={{ fontSize:10, color:C.dim, marginTop:2, fontStyle:"italic" }}>{ex.notes}</div>}
                                     </div>
-                                    <div style={{ fontSize:11, color:C.muted, flexShrink:0, textAlign:"right" }}>
-                                      {ex.sets&&ex.reps?`${ex.sets}×${ex.reps}`:ex.duration||ex.details||""}
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                                      <div style={{ fontSize:11, color:C.muted, textAlign:"right" }}>
+                                        {ex.sets&&ex.reps?`${ex.sets}×${ex.reps}`:ex.duration||ex.details||""}
+                                      </div>
+                                      <button
+                                        onClick={() => setEditTarget({ dayIdx:i, blockKey, exIdx:ei, ex })}
+                                        style={{ background:"none", border:"none", cursor:"pointer", padding:4, color:C.dim, display:"flex", alignItems:"center" }}
+                                      >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                      </button>
                                     </div>
                                   </div>
                                   <div style={{ marginTop:6 }}>
@@ -657,6 +667,26 @@ function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCom
           </div>
         )}
       </div>
+
+      {/* ── Exercise edit sheet ── */}
+      <ExerciseConfigSheet
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        exerciseName={editTarget?.ex?.name || ""}
+        blockKey={editTarget?.blockKey || "main"}
+        initial={editTarget?.ex || null}
+        title="Edit Exercise"
+        confirmLabel="Save"
+        onConfirm={(updated) => {
+          if (!editTarget) return;
+          const { dayIdx, blockKey, exIdx } = editTarget;
+          const newPlan = JSON.parse(JSON.stringify(plan));
+          const ex = newPlan.weekPlan[dayIdx]?.blocks?.[blockKey]?.[exIdx];
+          if (ex) Object.assign(ex, updated);
+          onPlanUpdate(newPlan);
+          setEditTarget(null);
+        }}
+      />
     </Screen>
   );
 }

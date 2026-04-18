@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `fcm-push-phase1`)
+**Last updated:** 2026-04-18 (commit `plan-review-edit-details`)
 
 ---
 
@@ -36,6 +36,7 @@ Grouped by milestone. Most recent commits at the top within each section.
 | Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
 | Firestore security rules — `users/{uid}/**` scoped to `request.auth.uid`. Rules file was already in repo; added `.firebaserc`, GitHub Action (`.github/workflows/deploy-firestore-rules.yml`) to auto-deploy on push. **Needs `FIREBASE_TOKEN` GitHub secret to activate** — see setup note below | `firestore-rules` |
 | Push notifications (FCM) — Phase 1 event-driven. Client: permission request + token capture (`lib/useFCM.js`), token stored in `users/{uid}.fcmToken`. Server: `lib/firebaseAdmin.js` + notification send after plan generation. Background handler in `public/firebase-messaging-sw.js`. **Needs 2 env vars in Vercel** — `NEXT_PUBLIC_FIREBASE_VAPID_KEY` + `FIREBASE_SERVICE_ACCOUNT` | `fcm-push-phase1` |
+| Edit Details on plan review screens — pencil button on every exercise row in `PlanReviewScreen` (onboarding) and `ProfilePlanReview` (`/profile/edit`). Opens `ExerciseConfigSheet` with current values pre-filled. On save, deep-clones and patches the plan in-place | `plan-review-edit-details` |
 
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
@@ -100,7 +101,6 @@ Priority order within each tier.
 
 - **Push notifications — Phase 2 scheduled** — cron-job.org or Firebase Cloud Functions to send Sunday generate-plan reminder, daily workout nudge
 - **Stripe paywall / billing page** — placeholder exists on profile. Need Stripe Checkout integration, free tier limits (e.g. 2 weeks), Pro tier unlock, billing portal
-- **Edit Details (sets/reps) on plan review screens** — both onboarding `PlanReviewScreen` and `ProfilePlanReview` in `/profile/edit`. Currently edits only happen post-commit on workout browse
 
 ### Tier 3 — Polish
 
@@ -144,6 +144,12 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-18 — Edit Details on plan review screens
+
+- `PlanReviewScreen` (onboarding, `pages/index.js`) — pencil button on every exercise row. Opens `ExerciseConfigSheet` pre-filled with current sets/reps/rest/notes. On confirm, deep-clones the plan and patches the exercise in-place, then calls `onPlanUpdate`
+- `ProfilePlanReview` (`pages/profile/edit.js`) — same pattern, patches `currentPlan` via `setCurrentPlan`
+- Both screens: `ExerciseConfigSheet` handles warmup/cooldown (details/duration field) vs strength (sets/reps/rest/notes) automatically via `blockKey`
 
 ### 2026-04-18 — FCM Push Notifications Phase 1
 
