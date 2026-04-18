@@ -1,13 +1,75 @@
 import "../styles/globals.css";
 import Head from "next/head";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 import InstallPrompt from "../components/ui/InstallPrompt";
 import { useFCM } from "../lib/useFCM";
 
 function FCMProvider() {
   const { user } = useAuth();
+  const router = useRouter();
+  const [toast, setToast] = useState(null);
+
   useFCM(user);
-  return null;
+
+  // Listen for foreground FCM messages dispatched by useFCM
+  useEffect(() => {
+    const handler = (e) => {
+      setToast(e.detail);
+      setTimeout(() => setToast(null), 5000);
+    };
+    window.addEventListener("apex:notification", handler);
+    return () => window.removeEventListener("apex:notification", handler);
+  }, []);
+
+  if (!toast) return null;
+
+  return (
+    <div
+      onClick={() => { router.push(toast.link || "/dashboard"); setToast(null); }}
+      style={{
+        position: "fixed", top: 16, left: 16, right: 16, zIndex: 99999,
+        background: "#1c1d21",
+        border: "1px solid rgba(196,255,0,0.3)",
+        borderRadius: 14,
+        padding: "14px 16px",
+        display: "flex", alignItems: "flex-start", gap: 12,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+        cursor: "pointer",
+        fontFamily: "'Lexend', sans-serif",
+        animation: "apexSlideDown 0.3s cubic-bezier(0.22,1,0.36,1) forwards",
+      }}
+    >
+      <div style={{
+        width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+        background: "rgba(196,255,0,0.12)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4ff00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{toast.title}</div>
+        <div style={{ fontSize: 12, color: "#9a9ca0", lineHeight: 1.4 }}>{toast.body}</div>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); setToast(null); }}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "#5d5e62", padding: 2, flexShrink: 0 }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <style>{`
+        @keyframes apexSlideDown {
+          from { transform: translateY(-16px); opacity: 0; }
+          to   { transform: translateY(0);     opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
 }
 
 export default function App({ Component, pageProps }) {
