@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-18 (commit `intro-screen`)
+**Last updated:** 2026-04-18 (commit `fcm-data-only-fix`)
 
 ---
 
@@ -170,8 +170,11 @@ Produced by onboarding and editable via `/profile/edit`. Gemini reads this at pl
   sleepHours: "7",
   stressLevel: "medium",                // "low" | "medium" | "high"
 
-  // Push notifications
-  fcmTokens: ["token_browser", "token_pwa"],  // per-device FCM tokens — arrayUnion, one per registered client
+  // Push notifications — per-device token array
+  fcmTokens: ["token_device_1", "token_device_2"],
+  // Populated by useFCM hook via arrayUnion (no overwrites, no duplicates)
+  // Stale tokens are auto-removed by sendPushNotification() when FCM returns NotRegistered
+  // Legacy single-token field (fcmToken) also supported as fallback in send functions
 
   // Cached copy of most recent plan (for fast dashboard reads)
   plan: { /* same shape as plans/week_N below */ },
@@ -417,3 +420,110 @@ Documenting these saves future sessions debugging time.
 ## 12. Deprecated
 
 (Empty for now — move obsolete sections here with a dated note when schema/code moves on.)
+
+---
+
+## 13. Push Notifications (FCM)
+
+### 13.1 Architecture overview
+
+| Layer | File | Purpose |
+|---|---|---|
+| Client hook | `lib/useFCM.js` | Permission request (gesture-gated), token capture, token saved to `users/{uid}.fcmTokens` |
+| Background SW | `public/firebase-messaging-sw.js` | Receives push when app is closed/backgrounded, calls `showNotification()` |
+| Server helper | `lib/firebaseAdmin.js` | `sendPushNotification()` — sends to all tokens for a user, auto-removes stale ones |
+| Test endpoint | `pages/api/test-notification.js` | `GET /api/test-notification?uid=<uid>` — smoke test for any user |
+| Plan trigger | `pages/api/generate-plan.js` | Fires "New plan ready" notification after Gemini returns a plan |
+
+### 13.2 Critical design decisions (hard-won)
+
+**Data-only payload — do not change this.**
+Messages are sent with a `data` field only (`{ data: { title, body, link } }`), never with a `notification` field. If you add a `notification` field, Firebase's SDK default handler AND our `onBackgroundMessage` handler both fire → 2 notifications per send. Data-only means only our handler runs.
+
+**Per-device token array.**
+`fcmTokens` is an array, not a single string. `arrayUnion` prevents duplicates. Stale tokens (phone wiped, PWA reinstalled, etc.) are detected on the next send via `NotRegistered` error code and removed automatically from Firestore.
+
+**Gesture-gated permission.**
+`Notification.requestPermission()` must be called from a user tap, not on page load — browsers reject auto-prompts. `useFCM` returns `{ permissionState, requestPermission }`. The enable banner in `_app.js` calls `requestPermission` from a button click.
+
+**No foreground toast.**
+We removed the in-app foreground toast. All notifications — foreground and background — go through the service worker. Simpler, more consistent, no duplicates.
+
+### 13.3 Env vars required
+
+| Var | Where | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Vercel → env | Public VAPID key — Firebase Console → Project Settings → Cloud Messaging → Web Push certificates → key pair value (the long ~88-char string in the table, not the private key) |
+| `FIREBASE_SERVICE_ACCOUNT` | Vercel → env | Full service account JSON as a single string — Firebase Console → Project Settings → Service accounts → Generate new private key → paste entire JSON |
+
+**Common gotchas:**
+- VAPID key = the key pair value shown in the table, NOT the private key from Actions menu
+- Service account JSON: paste the entire file contents. Vercel sometimes double-escapes `\n` in `private_key` — `firebaseAdmin.js` handles this automatically
+- After adding/changing env vars, a redeploy is required for them to take effect
+- After reinstalling the PWA, users must open the app once to register a fresh token
+
+### 13.4 Sending notifications
+
+**To a single user:**
+```js
+import { sendPushNotification } from "../../lib/firebaseAdmin";
+import admin from "firebase-admin";
+
+const snap = await admin.firestore().doc(`users/${uid}`).get();
+const tokens = snap.data()?.fcmTokens || [];
+
+await sendPushNotification({
+  uid,            // required for stale token cleanup
+  tokens,
+  title: "Your message title",
+  body:  "Your message body",
+  link:  "/dashboard",  // where tapping the notification opens
+});
+```
+
+**To all users (broadcast):**
+```js
+const usersSnap = await admin.firestore().collection("users").get();
+for (const doc of usersSnap.docs) {
+  const tokens = doc.data()?.fcmTokens || [];
+  if (!tokens.length) continue;
+  await sendPushNotification({
+    uid:    doc.id,
+    tokens,
+    title:  "Broadcast title",
+    body:   "Broadcast body",
+    link:   "/dashboard",
+  });
+}
+```
+
+**To a filtered segment (e.g. users who haven't logged a workout this week):**
+```js
+// Query users where currentWeek matches and no log exists
+const snap = await admin.firestore()
+  .collection("users")
+  .where("onboardingComplete", "==", true)
+  .get();
+
+for (const doc of snap.docs) {
+  const tokens = doc.data()?.fcmTokens || [];
+  if (!tokens.length) continue;
+  // add your filter logic here
+  await sendPushNotification({ uid: doc.id, tokens, title: "...", body: "..." });
+}
+```
+
+### 13.5 Adding new notification triggers
+
+Every notification trigger is an API route or a server-side function that imports `sendPushNotification`. The pattern is always:
+
+1. Read `users/{uid}` from Firestore to get `fcmTokens`
+2. Call `sendPushNotification({ uid, tokens, title, body, link })`
+3. Stale tokens are cleaned up automatically — no extra work needed
+
+Current triggers:
+- Plan generation (`/api/generate-plan.js`) — fires after Gemini returns a plan
+
+Planned triggers (Phase 2):
+- Sunday reminder to generate next week's plan
+- Daily workout nudge if session not logged by evening

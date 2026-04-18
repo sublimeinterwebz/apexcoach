@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `plan-review-edit-details`)
+**Last updated:** 2026-04-18 (commit `fcm-data-only-fix`)
 
 ---
 
@@ -35,7 +35,7 @@ Grouped by milestone. Most recent commits at the top within each section.
 |-------------------------------------------------------------|------------|
 | Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
 | Firestore security rules — `users/{uid}/**` scoped to `request.auth.uid`. Rules file was already in repo; added `.firebaserc`, GitHub Action (`.github/workflows/deploy-firestore-rules.yml`) to auto-deploy on push. **Needs `FIREBASE_TOKEN` GitHub secret to activate** — see setup note below | `firestore-rules` |
-| Push notifications (FCM) — Phase 1 event-driven. Client: permission request + token capture (`lib/useFCM.js`), token stored in `users/{uid}.fcmToken`. Server: `lib/firebaseAdmin.js` + notification send after plan generation. Background handler in `public/firebase-messaging-sw.js`. **Needs 2 env vars in Vercel** — `NEXT_PUBLIC_FIREBASE_VAPID_KEY` + `FIREBASE_SERVICE_ACCOUNT` | `fcm-push-phase1` |
+| Push notifications (FCM) — Phase 1 event-driven. **Final working state:** data-only payload (no `notification` field) eliminates double-notification from FCM SDK default + custom handler collision. Per-device `fcmTokens` array with auto-stale-cleanup. Gesture-gated permission banner. `sendPushNotification()` helper accepts `uid` + `tokens` for all send scenarios. Full architecture documented in `docs/apexcontext.md §13` | `fcm-data-only-fix` |
 | Edit Details on plan review screens — pencil button on every exercise row in `PlanReviewScreen` (onboarding) and `ProfilePlanReview` (`/profile/edit`). Opens `ExerciseConfigSheet` with current values pre-filled. On save, deep-clones and patches the plan in-place | `plan-review-edit-details` |
 
 | Item                                                        | Commit     |
