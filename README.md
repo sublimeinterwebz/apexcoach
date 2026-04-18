@@ -1,62 +1,66 @@
 # ApexCoach
 
-AI-powered personal trainer and nutritionist PWA. Generates weekly workout and nutrition plans tailored to each user, tracks performance, and updates the plan every week based on results.
+AI-powered fitness coach PWA. Generates personalised weekly training and nutrition plans, learns from logged workouts and user edits, adapts each week.
 
-## Stack
+🔗 **Live:** https://apexcoach-rho.vercel.app
 
-- **Framework:** Next.js 14 (Pages Router)
-- **PWA:** next-pwa
-- **AI:** Gemini 2.0 Flash
-- **Auth + DB:** Firebase (to be wired up)
-- **Styling:** Inline styles, DM Sans + Bebas Neue fonts
+---
 
-## Screens
+## 📚 For Claude / Future Sessions — Read First
 
-| Screen | Route | Description |
-|---|---|---|
-| Welcome / Onboarding | `/` | Sign in + 4-step profile collection |
-| Dashboard | `/dashboard` | Week strip, today's workout, macros |
-| Workout Logger | `/workout` | Set-by-set logging with rest timer |
-| Weekly Review | `/review` | Stats, AI feedback, plan regeneration |
-| AI Trainer Chat | `/chat` | Live chat with AI coach |
+All project knowledge lives in `/docs/`. Start here at the beginning of every session:
 
-## Setup
+| Doc | What it covers |
+|-----|----------------|
+| [`docs/apexcontext.md`](./docs/apexcontext.md) | Stack, directory map, Firestore schema, auth flow, API routes, Gemini prompt architecture, environment variables, known gotchas |
+| [`docs/roadmap.md`](./docs/roadmap.md) | Shipped features, in-progress work, committed backlog, speculative ideas, known issues, release notes |
+| [`docs/designsystem.md`](./docs/designsystem.md) | Typography scale, color tokens, spacing, component primitives API, patterns, writing conventions |
 
-### 1. Install dependencies
+**Update these docs in the same commit as the code change.** Each doc has a "How to Update" section at the top with specific rules for that doc.
+
+---
+
+## Tech Summary
+
+- **Framework:** Next.js 14 (Pages Router) · PWA via next-pwa
+- **AI:** Gemini 2.5 Flash
+- **Auth + DB:** Firebase Auth + Firestore
+- **Typography:** Lexend
+- **Styling:** Inline CSS-in-JS with shared tokens in `components/ui/tokens.js`
+- **Host:** Vercel (auto-deploy on push to `main`)
+
+---
+
+## Quick Start
 
 ```bash
 npm install
+npm run dev             # http://localhost:3000
+npm run build && npm start   # production build
 ```
 
-### 2. Add your Gemini API key
-
-Create a `.env.local` file in the root:
+Required env vars in `.env.local`:
 
 ```
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=...
+EXERCISEDB_API_KEY=...
 ```
 
-Get a key at [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+Firebase config is hardcoded in `lib/firebase.js` (public by design — security is via Firestore rules).
 
-### 3. Run locally
+---
 
-```bash
-npm run dev
-```
+## Routes
 
-Open [http://localhost:3000](http://localhost:3000)
+| Route | Purpose |
+|-------|---------|
+| `/` | Welcome + onboarding |
+| `/dashboard` | Today's session, Sunday banner, nutrition strip |
+| `/workout` | Browse + active logging + finish + feedback |
+| `/coach` | Weekly review + next-week generation |
+| `/chat` | AI chat with coach |
+| `/nutrition` | Macros + 7-day meal plan |
+| `/profile` | Summary |
+| `/profile/edit` | Full 4-step profile edit |
 
-### 4. Build for production
-
-```bash
-npm run build
-npm start
-```
-
-## Firebase Setup (Auth + Firestore)
-
-Wire up Firebase in `/pages/index.js` for Google Sign-In and email/password auth. Store user profiles and weekly plans in Firestore.
-
-## PWA Icons
-
-Add `icon-192.png` and `icon-512.png` to `/public/icons/` for the PWA install prompt.
+See `docs/apexcontext.md` §8 for the complete route table.
