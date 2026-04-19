@@ -58,9 +58,11 @@ export default function Dashboard() {
     async function load() {
       setPlanLoading(true);
       try {
-        if (profile?.plan?.weekPlan) { setPlan(profile.plan); setPlanLoading(false); return; }
+        // Fast render from profile cache (may be missing generatedAt on older plans)
+        if (profile?.plan?.weekPlan) setPlan(profile.plan);
+        // Source of truth from Firestore — has generatedAt via serverTimestamp()
         const p = await getWeekPlan(user.uid, wk);
-        setPlan(p);
+        if (p) setPlan(p);
       } catch(e) { console.error(e); }
       setPlanLoading(false);
     }
@@ -102,8 +104,17 @@ export default function Dashboard() {
   // Sunday = new week in Egypt. Show generate banner if it's Sunday, user has a plan,
   // AND the current plan wasn't generated today (prevents re-prompting the same Sunday).
   const isSunday = new Date().getDay() === 0;
-  const planGeneratedToday = profile?.plan?.generatedAt
-    ? new Date(profile.plan.generatedAt).toDateString() === new Date().toDateString()
+  // Normalize generatedAt from Firestore Timestamp | ISO string | serialized {seconds,nanoseconds}
+  const planGeneratedDate = (() => {
+    const g = plan?.generatedAt;
+    if (!g) return null;
+    if (typeof g === "string") return new Date(g);
+    if (typeof g.toDate === "function") return g.toDate();
+    if (typeof g.seconds === "number") return new Date(g.seconds * 1000);
+    return null;
+  })();
+  const planGeneratedToday = planGeneratedDate
+    ? planGeneratedDate.toDateString() === new Date().toDateString()
     : false;
   const showSundayBanner = isSunday && !!plan && !planGeneratedToday && !dismissedSundayBanner;
 

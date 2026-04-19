@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-19 (commit `fix-sunday-regen-loop`)
+**Last updated:** 2026-04-19 (commit `fix-sunday-regen-firestore-source`)
 
 ---
 

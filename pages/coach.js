@@ -34,12 +34,15 @@ export default function Coach() {
     async function load() {
       setDataLoading(true);
       try {
-        const [planData, logsData, feedbackData] = await Promise.all([
-          profile?.plan?.weekPlan ? Promise.resolve(profile.plan) : getWeekPlan(user.uid, currentWeek),
+        // Fast render from profile cache (may be missing generatedAt on older plans)
+        if (profile?.plan?.weekPlan) setPlan(profile.plan);
+        // Source of truth from Firestore — has generatedAt via serverTimestamp()
+        const [freshPlan, logsData, feedbackData] = await Promise.all([
+          getWeekPlan(user.uid, currentWeek),
           getWeekLogs(user.uid, currentWeek),
           getWeekFeedback(user.uid, currentWeek),
         ]);
-        if (planData) setPlan(planData);
+        if (freshPlan) setPlan(freshPlan);
         setLogs(logsData || []);
         setFeedback(feedbackData);
       } catch(e) { console.error(e); }
@@ -50,11 +53,21 @@ export default function Coach() {
 
   if (loading) return null;
 
+  // Normalize generatedAt from Firestore Timestamp | ISO string | serialized {seconds,nanoseconds}
+  const planGeneratedDate = (() => {
+    const g = plan?.generatedAt;
+    if (!g) return null;
+    if (typeof g === "string") return new Date(g);
+    if (typeof g.toDate === "function") return g.toDate();
+    if (typeof g.seconds === "number") return new Date(g.seconds * 1000);
+    return null;
+  })();
+
   // Egypt week starts Sunday. Generate button is only active on Sunday
   // AND only if the current plan wasn't generated today (prevents same-Sunday re-triggering).
   const isSunday = new Date().getDay() === 0;
-  const planGeneratedToday = profile?.plan?.generatedAt
-    ? new Date(profile.plan.generatedAt).toDateString() === new Date().toDateString()
+  const planGeneratedToday = planGeneratedDate
+    ? planGeneratedDate.toDateString() === new Date().toDateString()
     : false;
   const canGenerate = isSunday && !planGeneratedToday;
 

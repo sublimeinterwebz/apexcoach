@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `fix-sunday-regen-loop`)
+**Last updated:** 2026-04-19 (commit `fix-sunday-regen-firestore-source`)
 
 ---
 
@@ -144,6 +144,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Sunday re-generation loop (follow-up)
+
+- **Issue with first fix:** The previous commit stamped `generatedAt` onto the profile cache at generation time, but any user who had already generated today (with the old code) had no `generatedAt` in their cached profile plan — so the guard silently returned `false` and the banner/button still showed.
+- **Follow-up fix:** Both `pages/coach.js` and `pages/dashboard.js` now treat the Firestore `week_{N}` plan doc as the source of truth for `generatedAt` (which `saveWeekPlan` always stamps via `serverTimestamp()`). On load, both pages render immediately from the profile cache (fast path) and then fetch the fresh Firestore plan to get the authoritative `generatedAt` timestamp.
+- Added a `planGeneratedDate` normalizer that handles all three possible shapes: Firestore `Timestamp` object (`.toDate()`), ISO string (from profile cache), and serialized `{seconds, nanoseconds}` (from SSR/rehydration).
+- The banner and generate button now correctly gate on "the current week's plan was generated today" using the Firestore timestamp, independent of what's in the profile cache.
 
 ### 2026-04-19 — Fix: Sunday re-generation loop
 
