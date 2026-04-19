@@ -413,9 +413,21 @@ function GeneratingScreen({ user, form, setProfile, onReview, onDone }) {
               trainingDaysOfWeek: form.trainingDaysOfWeek,
             }),
           });
-          const data = await r.json();
-          if (!data.error) plan = data;
-          else setErrorMsg(data.error);
+          // Safe-parse: on 504 or HTML error page, surface a readable message
+          // instead of letting r.json() throw "Unexpected token 'A'...".
+          if (!r.ok) {
+            setErrorMsg(r.status === 504
+              ? "The AI took too long to respond. Please try again."
+              : `Something went wrong (${r.status}). Please try again.`);
+          } else {
+            try {
+              const data = await r.json();
+              if (!data.error) plan = data;
+              else setErrorMsg(data.error);
+            } catch {
+              setErrorMsg("The server returned an invalid response. Please try again.");
+            }
+          }
         } catch(e) { setErrorMsg(e.message); }
         finish();
         setTimeout(() => onReview(plan), 500);

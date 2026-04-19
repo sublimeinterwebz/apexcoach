@@ -175,15 +175,36 @@ export default function Profile() {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ ...updated, lastWeekPlan:null, lastWeekFeedback:null }),
       });
-      const newPlan = await r.json();
-      if (newPlan.error) { setRegenError(newPlan.error); setRegening(false); return; }
+
+      // Safe-parse: when Vercel returns a 504 or HTML error page, r.json() would throw
+      // "Unexpected token 'A'..." and crash the flow. Translate to a readable message.
+      let newPlan;
+      if (!r.ok) {
+        newPlan = { error: r.status === 504
+          ? "The AI took too long to respond. This usually works on the second try."
+          : `Something went wrong (${r.status}). Please try again.` };
+      } else {
+        try { newPlan = await r.json(); }
+        catch { newPlan = { error: "The server returned an invalid response. Please try again." }; }
+      }
+
+      if (newPlan.error) {
+        buildFinish();                 // stop the animation at 100%
+        setRegenError(newPlan.error);  // keep regening=true so we stay on the rebuilding-screen slot
+        return;
+      }
+
       buildFinish();
       // small beat so the user sees 100% / all checks completed before the review screen
       setTimeout(() => {
         setRegening(false);
         setReviewPlan({ plan: newPlan, profile: updated });
       }, 600);
-    } catch(e) { setRegenError(e.message); setSaving(false); setRegening(false); }
+    } catch(e) {
+      buildFinish();
+      setRegening(true); // ensure we remain on the rebuilding-screen slot to show the error
+      setRegenError(e.message || "Something unexpected went wrong. Please try again.");
+    }
   };
 
 
@@ -227,14 +248,31 @@ export default function Profile() {
   // ── Rebuilding screen (while saving + regenerating plan) ─
   if (saving || regening) return (
     <Screen>
-      <BuildingPhase
-        title="REBUILDING YOUR PLAN"
-        subtitle="Applying your new profile"
-        steps={PROFILE_REBUILD_STEPS}
-        progress={buildProgress}
-      />
-      {regenError && (
-        <div style={{position:"absolute",bottom:32,left:24,right:24,fontSize:12,color:"#ff5e5e",textAlign:"center"}}>{regenError}</div>
+      {regenError ? (
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"0 28px",textAlign:"center"}}>
+          <div style={{width:72,height:72,borderRadius:"50%",background:"rgba(255,94,94,0.1)",border:"2px solid rgba(255,94,94,0.35)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:24}}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff5e5e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
+          </div>
+          <div style={{fontSize:24,fontWeight:900,color:C.white,letterSpacing:-0.5,marginBottom:10}}>COULDN'T BUILD YOUR PLAN</div>
+          <div style={{fontSize:13,color:C.muted,lineHeight:1.6,marginBottom:28,maxWidth:320}}>{regenError}</div>
+          <button
+            onClick={() => { setRegenError(""); handleSaveAndRegen(); }}
+            style={{width:"100%",maxWidth:320,padding:"15px",background:C.accent,border:"none",borderRadius:14,fontFamily:F,fontSize:15,fontWeight:800,color:"#0a0a0a",cursor:"pointer",marginBottom:10}}>
+            Try Again
+          </button>
+          <button
+            onClick={() => { setRegening(false); setSaving(false); setRegenError(""); }}
+            style={{width:"100%",maxWidth:320,padding:"13px",background:"transparent",border:`1.5px solid ${C.border}`,borderRadius:14,fontFamily:F,fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer"}}>
+            Back to Profile
+          </button>
+        </div>
+      ) : (
+        <BuildingPhase
+          title="REBUILDING YOUR PLAN"
+          subtitle="Applying your new profile"
+          steps={PROFILE_REBUILD_STEPS}
+          progress={buildProgress}
+        />
       )}
     </Screen>
   );

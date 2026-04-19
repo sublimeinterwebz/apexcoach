@@ -126,7 +126,17 @@ export default function Coach() {
           lastWeekEdits,
         }),
       });
-      const newPlan = await r.json();
+      // Safe-parse: on 504 or HTML error page, r.json() would throw
+      // "Unexpected token 'A'..." — catch and surface a readable error.
+      let newPlan;
+      if (!r.ok) {
+        newPlan = { error: r.status === 504
+          ? "The AI took too long to respond. Please try again."
+          : `Something went wrong (${r.status}). Please try again.` };
+      } else {
+        try { newPlan = await r.json(); }
+        catch { newPlan = { error: "The server returned an invalid response. Please try again." }; }
+      }
       if (!newPlan.error && user) {
         await saveWeekPlan(user.uid, currentWeek + 1, newPlan);
         // Update profile week counter
