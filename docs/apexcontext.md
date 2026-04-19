@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-19 (commit `safe-parse-plan-response`)
+**Last updated:** 2026-04-19 (commit `fix-sunday-first-week-order`)
 
 ---
 
@@ -412,7 +412,7 @@ Documenting these saves future sessions debugging time.
 - **Session types** — Gemini returns `strength`, `hypertrophy`, `conditioning`, `rest`, `recovery`. Never assume `type === "workout"`. Count workouts as any non-rest type
 - **Nutrition schema** — three formats in the wild (see §5.2). Always fall back: `mealPlans` → `mealExamples` → `meals` → empty-state card
 - **`dailyCalories` vs `calories`** — older plans use `calories`. Read with fallback chain
-- **Day ordering** — plans may start Monday or Sunday depending on when they were generated. Always use `dayName` strings, never rely on array index for calendar mapping
+- **Day ordering** — `generate-plan` now always outputs weekPlan Sunday-first (Sunday=day 1, Saturday=day 7). Dashboard and workout pages use a `buildDayMap()` / `resolveWeekPlanIdx()` pattern that looks up entries by `dayName` string — never by array index — so they handle both old Mon-first and new Sun-first plans correctly. `DAY_SHORT` and `WEEK_DAYS` both start Sunday. `TODAY_IDX` = `new Date().getDay()` (0=Sun … 6=Sat, no offset).
 - **`trainingDaysOfWeek`** uses short 3-letter strings (`"Mon"`, `"Tue"`...). `plan.weekPlan[].dayName` uses full names (`"Monday"`)
 - **Exercise names** are stored lowercase from the Kaggle CSV. Always display with `textTransform: "capitalize"` — don't mutate the stored value
 - **`/api/generate-plan` 504s** — Gemini occasionally exceeds the 60s `maxDuration` cap. Vercel returns an HTML error page ("An error occurred..."), not JSON. Every caller must safe-parse: check `r.ok` and wrap `r.json()` in try/catch — otherwise the client throws `Unexpected token 'A'`. Profile edit, onboarding, and coach regen all do this as of `safe-parse-plan-response`

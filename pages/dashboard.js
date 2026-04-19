@@ -5,8 +5,10 @@ import { Card, StatCell, SectionLabel, F, FW } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWorkoutLog } from "../lib/firebase";
 
-const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
-const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+// Sun-first order — matches Egypt week start and Gemini plan output
+const DAY_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const TODAY_IDX = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
 
 const TYPE_COLOR = {
   strength:     C.accent,
@@ -16,16 +18,23 @@ const TYPE_COLOR = {
   rest:         C.dim,
 };
 
+// Week dates starting from Sunday
 function getWeekDates() {
   const today = new Date();
-  const dow   = today.getDay();
-  const mon   = new Date(today);
-  mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  const sun   = new Date(today);
+  sun.setDate(today.getDate() - today.getDay());
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
+    const d = new Date(sun);
+    d.setDate(sun.getDate() + i);
     return d.getDate();
   });
+}
+
+// Lookup by dayName so we never depend on weekPlan array order
+function buildDayMap(weekPlan) {
+  const map = {};
+  (weekPlan || []).forEach(d => { if (d?.dayName) map[d.dayName] = d; });
+  return map;
 }
 
 function greetingTag() {
@@ -77,7 +86,8 @@ export default function Dashboard() {
   const weekDates   = getWeekDates();
 
   const weekPlan = plan?.weekPlan || [];
-  const dayData  = weekPlan[selectedDay] || null;
+  const dayMap   = buildDayMap(weekPlan);
+  const dayData  = dayMap[DAY_NAMES[selectedDay]] || null;
 
   // Nutrition — resilient to schema variations
   const nutrition = plan?.nutrition || null;
@@ -85,7 +95,10 @@ export default function Dashboard() {
 
   // Today's calories may come from: mealPlans[today].totalCalories, mealPlans[today].meals totals,
   // or the top-level dailyCalories. Fall back through these in order.
-  const todayMealPlan = nutrition?.mealPlans?.[selectedDay] || null;
+  const selectedDayName = DAY_NAMES[selectedDay];
+  const todayMealPlan = nutrition?.mealPlans?.find(m => m.dayName === selectedDayName)
+    || nutrition?.mealPlans?.[selectedDay]
+    || null;
   const todayCalories = todayMealPlan?.totalCalories
     || todayMealPlan?.meals?.reduce((s, m) => s + (m.calories || 0), 0)
     || nutrition?.dailyCalories

@@ -135,7 +135,7 @@ COACHING INSTRUCTIONS
 Design a 7-day plan that mimics a real coach:
 
 1. Weekly Structure:
-- Exactly 7 days total
+- Exactly 7 days total, ordered Sunday through Saturday (Sunday is day 1, Saturday is day 7)
 - Exactly ${days} training days and ${7 - days} rest/recovery days${specificDays ? '. IMPORTANT: Schedule workouts ONLY on these specific days: ' + specificDays + '. All other days must be rest/recovery.' : ''}
 - Mix training styles if relevant (strength, hypertrophy, conditioning, mobility)
 - Place rest days strategically based on the training split
@@ -195,7 +195,7 @@ OUTPUT FORMAT — Return ONLY valid JSON. No text outside the JSON object.
   "weekPlan": [
     {
       "day": "Day 1",
-      "dayName": "Monday",
+      "dayName": "Sunday",
       "dayIndex": 0,
       "type": "strength",
       "focus": "Upper Body Push",
@@ -243,7 +243,7 @@ OUTPUT FORMAT — Return ONLY valid JSON. No text outside the JSON object.
     "dailyCalories": 2400,
     "macros": { "protein": 180, "carbs": 240, "fat": 80 },
     "mealPlans": [
-      {"dayIndex": 0, "dayName": "Monday", "type": "training", "meals": [
+      {"dayIndex": 0, "dayName": "Sunday", "type": "training", "meals": [
         {"meal": "Breakfast", "name": "Scrambled Eggs & Oats", "example": "3 scrambled eggs, 80g oats, banana", "calories": 520, "protein": 38},
         {"meal": "Lunch", "name": "Chicken Rice Bowl", "example": "200g chicken, 150g rice, salad", "calories": 650, "protein": 52},
         {"meal": "Pre-Workout", "name": "Protein Shake", "example": "25g whey, banana", "calories": 200, "protein": 22},

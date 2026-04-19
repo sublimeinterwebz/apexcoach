@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `safe-parse-plan-response`)
+**Last updated:** 2026-04-19 (commit `fix-sunday-first-week-order`)
 
 ---
 
@@ -146,6 +146,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Sunday-first week order + day mapping
+
+- **Bug:** Calendar and workout view showed Sunday as a rest day and Saturday as a workout day even when the user selected Sun–Fri as training days. Root cause: `DAY_SHORT`/`WEEK_DAYS` started Monday, `getWeekDates()` anchored to Monday, and `TODAY_IDX` remapped Sunday (JS `getDay()=0`) to slot 6. Meanwhile Gemini generates `weekPlan` starting from Sunday. Result: every day was displayed one slot off — `weekPlan[0]` (Sunday) showed under MON, `weekPlan[5]` (Friday workout) showed under SAT, `weekPlan[6]` (Saturday rest) showed under SUN.
+- **Fix (`pages/dashboard.js`, `pages/workout.js`):** `DAY_SHORT` → Sun-first. `TODAY_IDX` → `new Date().getDay()` (no offset). `getWeekDates()` → anchors to Sunday. Added `buildDayMap(weekPlan)` which indexes entries by `dayName` string — `dayData` is now `dayMap[DAY_NAMES[selectedDay]]` instead of `weekPlan[selectedDay]`. In workout.js, all exercise edit handlers use `resolveWeekPlanIdx(slotIdx)` to find the correct array position by dayName before mutating.
+- **Fix (`pages/index.js`):** `WEEK_DAYS` → `["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]` so the onboarding day-picker starts Sunday.
+- **Fix (`pages/api/generate-plan.js`):** Added explicit instruction "ordered Sunday through Saturday (Sunday is day 1)". Updated JSON example to show `dayName: "Sunday"` as first entry. Old plans (Mon-first in Firestore) still work correctly via the dayName lookup.
 
 ### 2026-04-19 — Fix: Sunday re-generation loop (follow-up)
 

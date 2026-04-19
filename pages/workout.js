@@ -7,8 +7,9 @@ import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog, applyPlanEdit } from "../lib/firebase";
 
 const F = "'Lexend', sans-serif";
-const DAY_SHORT = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
-const TODAY_IDX = new Date().getDay()===0?6:new Date().getDay()-1;
+const DAY_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const TODAY_IDX = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
 
 const TYPE_COLOR = {
   strength:"#c4ff00", hypertrophy:"#00cfff", conditioning:"#ffaa00", recovery:"#aa88ff", rest:C.dim,
@@ -23,11 +24,17 @@ const BLOCK_META = {
   cooldown:  { label:"Cooldown",   color:C.muted   },
 };
 
+function buildDayMap(weekPlan) {
+  const map = {};
+  (weekPlan || []).forEach(d => { if (d?.dayName) map[d.dayName] = d; });
+  return map;
+}
+
 function getWeekDates() {
-  const today = new Date(), dow = today.getDay();
-  const mon = new Date(today);
-  mon.setDate(today.getDate() - (dow===0?6:dow-1));
-  return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return d.getDate(); });
+  const today = new Date();
+  const sun = new Date(today);
+  sun.setDate(today.getDate() - today.getDay());
+  return Array.from({length:7}, (_,i) => { const d=new Date(sun); d.setDate(sun.getDate()+i); return d.getDate(); });
 }
 
 function flattenBlocks(blocks) {
@@ -92,7 +99,16 @@ export default function Workout() {
   if (loading) return null;
 
   const weekDates = getWeekDates();
-  const dayData   = weekPlan[selectedDay] || null;
+  const dayMap    = buildDayMap(weekPlan);
+  const dayData   = dayMap[DAY_NAMES[selectedDay]] || null;
+
+  // Given a display-slot index (0=Sun … 6=Sat), return the actual weekPlan array index
+  // so edits target the correct entry regardless of what order Gemini returned the array.
+  const resolveWeekPlanIdx = (slotIdx) => {
+    const name = DAY_NAMES[slotIdx];
+    const idx  = weekPlan.findIndex(d => d?.dayName === name);
+    return idx >= 0 ? idx : slotIdx; // fallback to slotIdx for plans without dayName
+  };
   const flat      = flattenBlocks(dayData?.blocks);
   const loggable  = getLoggable(flat);
   const curEx     = loggable[exIdx];
@@ -125,23 +141,25 @@ export default function Workout() {
   };
 
   const handleRemoveExercise = (dayIdx, blockKey, exerciseIdx) => {
-    const day = weekPlan[dayIdx];
+    const realIdx = resolveWeekPlanIdx(dayIdx);
+    const day = weekPlan[realIdx];
     if (!day?.blocks?.[blockKey]) return;
     const removed = day.blocks[blockKey][exerciseIdx];
     const newBlocks = { ...day.blocks, [blockKey]: day.blocks[blockKey].filter((_, i) => i !== exerciseIdx) };
-    const newWeek = weekPlan.map((d, i) => i === dayIdx ? { ...d, blocks: newBlocks } : d);
+    const newWeek = weekPlan.map((d, i) => i === realIdx ? { ...d, blocks: newBlocks } : d);
     persistPlanEdit(newWeek, { type: "remove", day: day.dayName || day.day, block: blockKey, from: removed?.name });
   };
 
   const handleMoveExercise = (dayIdx, blockKey, fromIdx, direction) => {
-    const day = weekPlan[dayIdx];
+    const realIdx = resolveWeekPlanIdx(dayIdx);
+    const day = weekPlan[realIdx];
     if (!day?.blocks?.[blockKey]) return;
     const arr = [...day.blocks[blockKey]];
     const toIdx = fromIdx + (direction === "up" ? -1 : 1);
     if (toIdx < 0 || toIdx >= arr.length) return;
     [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
     const newBlocks = { ...day.blocks, [blockKey]: arr };
-    const newWeek = weekPlan.map((d, i) => i === dayIdx ? { ...d, blocks: newBlocks } : d);
+    const newWeek = weekPlan.map((d, i) => i === realIdx ? { ...d, blocks: newBlocks } : d);
     persistPlanEdit(newWeek, { type: "reorder", day: day.dayName || day.day, block: blockKey, note: `Moved ${arr[toIdx].name} ${direction}` });
   };
 
@@ -156,7 +174,8 @@ export default function Workout() {
 
   // "Edit details" on existing exercise → open config directly
   const openEditConfig = (dayIdx, blockKey, exerciseIdx) => {
-    const ex = weekPlan[dayIdx]?.blocks?.[blockKey]?.[exerciseIdx];
+    const realIdx = resolveWeekPlanIdx(dayIdx);
+    const ex = weekPlan[realIdx]?.blocks?.[blockKey]?.[exerciseIdx];
     if (!ex) return;
     setConfigState({
       open: true, mode: "edit",
@@ -169,8 +188,9 @@ export default function Workout() {
   // User picked an exercise from the DB — close picker, open config sheet to set sets/reps
   const handlePick = (picked) => {
     const { mode, block, exerciseIndex, dayIndex } = pickerState;
+    const realIdx = resolveWeekPlanIdx(dayIndex);
     // For replace, pre-fill with the current exercise's sets/reps so user can keep or edit them
-    const current = mode === "replace" ? weekPlan[dayIndex]?.blocks?.[block]?.[exerciseIndex] : null;
+    const current = mode === "replace" ? weekPlan[realIdx]?.blocks?.[block]?.[exerciseIndex] : null;
     closePicker();
     setConfigState({
       open: true, mode,
@@ -183,26 +203,27 @@ export default function Workout() {
   // Config sheet confirmed — write the exercise with its chosen sets/reps to the plan
   const handleConfigConfirm = (values) => {
     const { mode, block, exerciseIndex, dayIndex, exerciseName } = configState;
-    const day = weekPlan[dayIndex];
+    const realIdx = resolveWeekPlanIdx(dayIndex);
+    const day = weekPlan[realIdx];
     if (!day) { closeConfig(); return; }
 
     if (mode === "edit") {
       const oldEx = day.blocks[block][exerciseIndex];
       const newEx = { ...oldEx, ...values };
       const newBlocks = { ...day.blocks, [block]: day.blocks[block].map((e, i) => i === exerciseIndex ? newEx : e) };
-      const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
+      const newWeek = weekPlan.map((d, i) => i === realIdx ? { ...d, blocks: newBlocks } : d);
       persistPlanEdit(newWeek, { type: "edit", day: day.dayName || day.day, block, from: oldEx.name, note: `Updated sets/reps for ${oldEx.name}` });
     } else if (mode === "replace") {
       const oldEx = day.blocks[block][exerciseIndex];
       const newEx = { name: exerciseName, ...values };
       const newBlocks = { ...day.blocks, [block]: day.blocks[block].map((e, i) => i === exerciseIndex ? newEx : e) };
-      const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
+      const newWeek = weekPlan.map((d, i) => i === realIdx ? { ...d, blocks: newBlocks } : d);
       persistPlanEdit(newWeek, { type: "swap", day: day.dayName || day.day, block, from: oldEx?.name, to: exerciseName });
     } else if (mode === "add") {
       const newEx = { name: exerciseName, ...values };
       const existing = day.blocks[block] || [];
       const newBlocks = { ...day.blocks, [block]: [...existing, newEx] };
-      const newWeek = weekPlan.map((d, i) => i === dayIndex ? { ...d, blocks: newBlocks } : d);
+      const newWeek = weekPlan.map((d, i) => i === realIdx ? { ...d, blocks: newBlocks } : d);
       persistPlanEdit(newWeek, { type: "add", day: day.dayName || day.day, block, to: exerciseName });
     }
     closeConfig();

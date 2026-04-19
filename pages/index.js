@@ -12,7 +12,7 @@ const STEPS = ["Profile", "Health", "Lifestyle", "Goals"];
 
 const DIETARY_OPTIONS = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
 const INJURY_OPTIONS  = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
-const WEEK_DAYS       = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const WEEK_DAYS       = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 // Gym equipment categories (broad — covers most commercial gyms)
 const GYM_CATEGORIES  = ["Full Commercial Gym","Free Weights (Barbells & Dumbbells)","Cable & Pulley Machines","Resistance Machines","Cardio Equipment","Racks & Benches","Smith Machine","Pull-up / Dip Station"];
