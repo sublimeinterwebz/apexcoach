@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `fix-sunday-first-week-order-followup`)
+**Last updated:** 2026-04-19 (commit `fix-dashboard-day-strip`)
 
 ---
 
@@ -146,6 +146,11 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Dashboard day strip (final piece of the Sunday-first set)
+
+- **Issue:** After the previous two fixes, the workout/coach/nutrition pages correctly rendered days by `dayName` lookup, but the dashboard day strip was still iterating `weekPlan[i]` by array index. With a Mon-first stored plan this coincidentally appeared correct to the user (the offset visually lined up) — but disagreed with the now-correct workout page, which is what the user reported.
+- **Fix:** Dashboard day strip now uses `dayMap[DAY_NAMES[i]]` for each Sun→Sat slot, matching the rest of the app. Every surface that renders the week (dashboard strip, dashboard main card, workout strip, workout view, coach sessions list, nutrition meal selector) now uses the same dayName-based lookup.
 
 ### 2026-04-19 — Fix: Sunday-first week order (follow-up — remaining pages)
 

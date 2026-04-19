@@ -181,7 +181,7 @@ export default function Dashboard() {
         {/* ── DAY STRIP ── */}
         <div style={{ padding:"28px 20px 0", display:"flex", gap:8 }}>
           {DAY_SHORT.map((d, i) => {
-            const day      = weekPlan[i];
+            const day      = dayMap[DAY_NAMES[i]] || null;
             const isSelected = i === selectedDay;
             const isToday  = i === TODAY_IDX;
             const isRest   = !day || day.type === "rest" || day.type === "recovery";
