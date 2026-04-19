@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-19 (commit `fix-sunday-regen-firestore-source`)
+**Last updated:** 2026-04-19 (commit `unified-building-phase`)
 
 ---
 
@@ -76,6 +76,7 @@ components/
     ├── ExerciseRow.js   Editable row + menu + GIF toggle (exports BLOCK_COLORS, BLOCK_LABELS)
     ├── ExercisePicker.js ExerciseDB picker bottom sheet with filters
     ├── ExerciseConfigSheet.js  Sets/reps/rest/notes configurator
+    ├── BuildingPhase.js  Shared "AI is working" view — progress ring + step list + `useBuildingProgress` hook. Used by onboarding, coach regen, profile rebuild
     ├── BlockSection.js  Block header + children
     ├── BottomSheet.js   Reusable slide-up overlay
     ├── FAB.js           Floating action button

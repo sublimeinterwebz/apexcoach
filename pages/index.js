@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { Screen, btnStyle, inputStyle, Label, RadioCard, C } from "../components/shared";
 import ExerciseGif from "../components/ExerciseGif";
 import ExerciseConfigSheet from "../components/ui/ExerciseConfigSheet";
+import { BuildingPhase, useBuildingProgress } from "../components/ui";
 import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile, saveWeekPlan } from "../lib/firebase";
 import { useAuth } from "../lib/AuthContext";
 
@@ -366,33 +367,41 @@ function IntroScreen({ user, onStart }) {
 }
 
 // ── Generating Screen ────────────────────────────────────
+const ONBOARDING_BUILD_STEPS = [
+  "Reviewing your profile",
+  "Matching your equipment",
+  "Calculating starting loads",
+  "Personalizing nutrition targets",
+  "Finalizing your plan",
+];
+
 function GeneratingScreen({ user, form, setProfile, onReview, onDone }) {
-  const [status,   setStatus]   = useState("saving");
-  const [stepMsg,  setStepMsg]  = useState("Saving your profile...");
+  const { progress, start, finish } = useBuildingProgress();
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     async function run() {
+      start();
+
       // Build equipment string for Gemini
-      const hasGym  = form.workoutLocation?.includes("Gym") || form.workoutLocation?.includes("Both");
+      const hasGym  = form.workoutLocation?.includes("Gym")  || form.workoutLocation?.includes("Both");
       const hasHome = form.workoutLocation?.includes("Home") || form.workoutLocation?.includes("Both");
       const equipParts = [];
-      if (hasGym && form.gymEquipment?.length) equipParts.push(...form.gymEquipment);
+      if (hasGym  && form.gymEquipment?.length)  equipParts.push(...form.gymEquipment);
       if (hasHome && form.homeEquipment?.length) equipParts.push(...form.homeEquipment);
       if (form.equipmentOther) equipParts.push(form.equipmentOther);
       const equipStr = equipParts.length ? equipParts.join(", ") : "standard gym equipment";
 
       const profileToSave = {
         displayName: user?.displayName || "",
-        email: user?.email || "",
+        email:       user?.email || "",
         ...form,
-        equipment: equipParts,
+        equipment:    equipParts,
         equipmentStr: equipStr,
       };
 
       try {
         if (user) await saveUserProfile(user.uid, profileToSave).catch(()=>{});
-        setStepMsg("Building your AI-powered plan...");
         let plan = null;
         try {
           const r = await fetch("/api/generate-plan", {
@@ -408,12 +417,12 @@ function GeneratingScreen({ user, form, setProfile, onReview, onDone }) {
           if (!data.error) plan = data;
           else setErrorMsg(data.error);
         } catch(e) { setErrorMsg(e.message); }
-        setStatus("ready");
-        onReview(plan);
+        finish();
+        setTimeout(() => onReview(plan), 500);
       } catch(e) {
         setErrorMsg(e.message);
-        setStatus("ready");
-        onDone();
+        finish();
+        setTimeout(() => onDone(), 500);
       }
     }
     const t = setTimeout(run, 400);
@@ -421,21 +430,13 @@ function GeneratingScreen({ user, form, setProfile, onReview, onDone }) {
   }, []);
 
   return (
-    <Screen style={{ alignItems:"center", justifyContent:"center" }}>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}`}</style>
-      <div style={{ textAlign:"center", padding:"0 32px", width:"100%", zIndex:1 }}>
-        <div style={{ width:80, height:80, borderRadius:"50%", background:C.accentDim, border:`2px solid ${C.accentBorder}`, margin:"0 auto 28px", display:"flex", alignItems:"center", justifyContent:"center", animation:status==="ready"?"none":"pulse 2s ease-in-out infinite" }}>
-          {status === "ready" ? (
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          ) : (
-            <div style={{ width:32, height:32, borderRadius:"50%", border:`2px solid ${C.border}`, borderTopColor:C.accent, animation:"spin 0.9s linear infinite" }}/>
-          )}
-        </div>
-        <div style={{ fontSize:24, fontWeight:900, color:C.white, letterSpacing:-0.5, marginBottom:8 }}>
-          {status==="ready" ? "YOUR PLAN IS READY" : "BUILDING YOUR PLAN"}
-        </div>
-        <div style={{ fontSize:13, color:C.muted, lineHeight:1.7 }}>{stepMsg}</div>
-      </div>
+    <Screen>
+      <BuildingPhase
+        title="BUILDING YOUR PLAN"
+        subtitle="Creating your first AI program"
+        steps={ONBOARDING_BUILD_STEPS}
+        progress={progress}
+      />
     </Screen>
   );
 }

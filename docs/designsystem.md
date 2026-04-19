@@ -8,7 +8,7 @@
 - If a design convention changes (e.g. default card padding), update §5 and explain why in the release note at the bottom
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `intro-screen`)
+**Last updated:** 2026-04-19 (commit `unified-building-phase`)
 
 ---
 
@@ -388,6 +388,26 @@ Floating action button. Rounded pill, lime bg, icon or icon+label.
 ### BottomNav
 
 3-tab floating pill. Maps active keys to tabs automatically via `components/shared.js` wrapper so legacy pages (e.g. `active="workout"`) still highlight the right tab.
+
+### BuildingPhase
+
+Full-screen "AI is working on your plan" view — progress ring with live %, title, subtitle, thin progress bar, and a 5-step checklist that ticks off as progress crosses thresholds `[20, 42, 63, 82, 100]`. Used wherever plan generation runs: onboarding first-plan, Coach Sunday regen, profile Save-and-Rebuild.
+
+Props: `title`, `subtitle`, `steps` (array of 5), `progress` (0–100). Pure display — drive `progress` from the caller. Step labels adjust per context so the user sees language relevant to what's happening.
+
+Ships with `useBuildingProgress()` hook that handles the animation loop:
+
+```js
+const { progress, start, finish } = useBuildingProgress();
+
+// inside your async handler:
+start();                    // kicks off the ring
+const plan = await fetch("/api/generate-plan", ...).then(r => r.json());
+finish();                   // snaps to 100
+setTimeout(() => goToNextPhase(), 600);
+```
+
+Progress animation (`+1.4` every 50ms) runs independently of the real API call. If Gemini returns before the bar reaches 100, `finish()` snaps it; if later, the bar holds at 100 until `finish()` fires the transition. Typical full animation is ~3.5s from 0 to 100.
 
 ### Icon
 

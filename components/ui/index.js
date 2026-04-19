@@ -13,5 +13,6 @@ export { default as FAB }                from "./FAB";
 export { default as BottomNav }          from "./BottomNav";
 export { default as ExercisePicker }     from "./ExercisePicker";
 export { default as ExerciseConfigSheet } from "./ExerciseConfigSheet";
+export { default as BuildingPhase, useBuildingProgress } from "./BuildingPhase";
 
 export { default as InstallPrompt } from './InstallPrompt';

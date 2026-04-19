@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
-import { FAB, Icon, Card, Chip, Button, SectionLabel, StatCell } from "../components/ui";
+import { FAB, Icon, Card, Chip, Button, SectionLabel, StatCell, BuildingPhase } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWeekLogs, getWeekFeedback, saveWeekPlan } from "../lib/firebase";
 
@@ -24,7 +24,6 @@ export default function Coach() {
   const [phase,      setPhase]      = useState("review");
   const [page,       setPage]       = useState(0);
   const [progress,   setProgress]   = useState(0);
-  const [genStep,    setGenStep]    = useState(0);
   const intervalRef  = useRef(null);
 
   const currentWeek = profile?.currentWeek || 1;
@@ -86,7 +85,7 @@ export default function Coach() {
 
   // ── Generate next week ───────────────────────────────
   const startGeneration = async () => {
-    setPhase("generating"); setProgress(0); setGenStep(0);
+    setPhase("generating"); setProgress(0);
 
     // Build feedback summary for Gemini
     const feedbackSummary = feedback ? {
@@ -145,16 +144,18 @@ export default function Coach() {
   };
 
   useEffect(()=>(()=>clearInterval(intervalRef.current)), []);
-  useEffect(()=>{
-    const thresholds=[20,42,63,82,100];
-    const s=thresholds.findIndex(t=>progress<t);
-    setGenStep(s===-1?GEN_STEPS.length:s);
-  }, [progress]);
 
   return (
     <Screen>
       {phase==="review"     && <ReviewPhase page={page} setPage={setPage} onGenerate={startGeneration} plan={plan} logs={logs} completedLogs={completedLogs} plannedWorkouts={plannedWorkouts} completedWorkouts={completedWorkouts} consistency={consistency} totalVolume={totalVolume} totalSets={totalSets} feedback={feedback} currentWeek={currentWeek} dataLoading={dataLoading} isSunday={canGenerate} todayJS={todayJS} DAY_NAME_JS={DAY_NAME_JS} />}
-      {phase==="generating" && <GeneratingPhase progress={progress} currentStep={genStep} />}
+      {phase==="generating" && (
+        <BuildingPhase
+          title={`BUILDING WEEK ${currentWeek + 1}`}
+          subtitle="AI is adapting your program"
+          steps={GEN_STEPS}
+          progress={progress}
+        />
+      )}
       {phase==="ready"      && <ReadyPhase router={router} currentWeek={currentWeek} />}
       {phase==="review"     && (
         <>
@@ -297,39 +298,6 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
           })}
         </Card>
       )}
-    </div>
-  );
-}
-
-// ── Generating Phase ───────────────────────────────────
-function GeneratingPhase({ progress, currentStep }) {
-  const r=46, circ=2*Math.PI*r;
-  return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"0 28px",position:"relative",zIndex:1}}>
-      <div style={{position:"relative",width:110,height:110,marginBottom:32}}>
-        <svg width="110" height="110" style={{position:"absolute",transform:"rotate(-90deg)"}}>
-          <circle cx="55" cy="55" r={r} fill="none" stroke={C.border} strokeWidth="5"/>
-          <circle cx="55" cy="55" r={r} fill="none" stroke={C.accent} strokeWidth="5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ-(progress/100)*circ} style={{transition:"stroke-dashoffset .1s linear"}}/>
-        </svg>
-        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:900,color:C.accent}}>{Math.round(progress)}%</div>
-      </div>
-      <div style={{fontSize:28,fontWeight:900,color:C.white,letterSpacing:-0.5,marginBottom:8,textAlign:"center"}}>BUILDING WEEK {currentStep+1}</div>
-      <div style={{fontSize:13,color:C.muted,marginBottom:28,textAlign:"center"}}>AI is adapting your program</div>
-      <div style={{width:"100%",height:3,background:C.border,borderRadius:3,marginBottom:28,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${progress}%`,background:C.accent,borderRadius:3,transition:"width .1s linear"}}/>
-      </div>
-      <div style={{width:"100%",display:"flex",flexDirection:"column",gap:12}}>
-        {GEN_STEPS.map((label,i)=>{
-          const thresholds=[20,42,63,82,100];
-          const done=progress>=thresholds[i], active=!done&&i===currentStep;
-          return (
-            <div key={label} style={{display:"flex",alignItems:"center",gap:12}}>
-              <div style={{width:20,height:20,borderRadius:"50%",flexShrink:0,background:done?C.accent:active?C.accentDim:C.bgCard,border:`1.5px solid ${done?C.accent:active?C.accentBorder:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:done?"#0a0a0a":C.dim,transition:"all .3s"}}>{done?"✓":""}</div>
-              <div style={{fontSize:13,fontWeight:done?500:active?700:400,color:done?C.muted:active?C.white:C.dim,transition:"color .3s"}}>{label}</div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `fix-sunday-regen-firestore-source`)
+**Last updated:** 2026-04-19 (commit `unified-building-phase`)
 
 ---
 
@@ -33,6 +33,7 @@ Grouped by milestone. Most recent commits at the top within each section.
 
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
+| Unified "AI is building your plan" view across all three contexts — extracted Coach-tab GeneratingPhase into shared `components/ui/BuildingPhase.js` + `useBuildingProgress` hook. Onboarding first-plan screen (previously a spinner) and profile Save-and-Rebuild (previously a dim button) now show the same progress-ring + 5-step checklist pattern as Sunday regen, with copy adjusted per context (`BUILDING YOUR PLAN` / `BUILDING WEEK N` / `REBUILDING YOUR PLAN`) | `unified-building-phase` |
 | Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
 | Firestore security rules — `users/{uid}/**` scoped to `request.auth.uid`. Rules file was already in repo; added `.firebaserc`, GitHub Action (`.github/workflows/deploy-firestore-rules.yml`) to auto-deploy on push. **Needs `FIREBASE_TOKEN` GitHub secret to activate** — see setup note below | `firestore-rules` |
 | Push notifications (FCM) — Phase 1 event-driven. **Final working state:** data-only payload (no `notification` field) eliminates double-notification from FCM SDK default + custom handler collision. Per-device `fcmTokens` array with auto-stale-cleanup. Gesture-gated permission banner. `sendPushNotification()` helper accepts `uid` + `tokens` for all send scenarios. Full architecture documented in `docs/apexcontext.md §13` | `fcm-data-only-fix` |

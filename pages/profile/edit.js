@@ -6,9 +6,17 @@ import { useAuth } from "../../lib/AuthContext";
 import { saveUserProfile } from "../../lib/firebase";
 import ExerciseGif from "../../components/ExerciseGif";
 import ExerciseConfigSheet from "../../components/ui/ExerciseConfigSheet";
+import { BuildingPhase, useBuildingProgress } from "../../components/ui";
 
 const F = "'Lexend', sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
+const PROFILE_REBUILD_STEPS = [
+  "Saving your profile",
+  "Matching new equipment & schedule",
+  "Recalculating loads",
+  "Updating nutrition targets",
+  "Finalizing your new plan",
+];
 
 const DIETARY_OPTIONS = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
 const INJURY_OPTIONS  = ["None","Lower Back","Knee","Shoulder","Neck","Hip","Wrist/Elbow","Ankle","Heart Condition"];
@@ -71,6 +79,7 @@ export default function Profile() {
   const [regening,      setRegening]      = useState(false);
   const [regenError,    setRegenError]    = useState("");
   const [reviewPlan,    setReviewPlan]    = useState(null);   // plan to review after regen
+  const { progress: buildProgress, start: buildStart, finish: buildFinish } = useBuildingProgress();
 
 
   // ALL hooks must be before any early return (Rules of Hooks)
@@ -154,6 +163,7 @@ export default function Profile() {
 
   const handleSaveAndRegen = async () => {
     setSaving(true); setRegenError("");
+    buildStart();   // kick off progress animation; view switches to BuildingPhase once regening=true
     try {
       const updated = buildUpdated();
       await saveUserProfile(user.uid, updated);
@@ -167,8 +177,12 @@ export default function Profile() {
       });
       const newPlan = await r.json();
       if (newPlan.error) { setRegenError(newPlan.error); setRegening(false); return; }
-      setRegening(false);
-      setReviewPlan({ plan: newPlan, profile: updated }); // show review screen
+      buildFinish();
+      // small beat so the user sees 100% / all checks completed before the review screen
+      setTimeout(() => {
+        setRegening(false);
+        setReviewPlan({ plan: newPlan, profile: updated });
+      }, 600);
     } catch(e) { setRegenError(e.message); setSaving(false); setRegening(false); }
   };
 
@@ -208,6 +222,21 @@ export default function Profile() {
       setProfile={setProfile}
       onDone={() => router.push("/dashboard")}
     />
+  );
+
+  // ── Rebuilding screen (while saving + regenerating plan) ─
+  if (saving || regening) return (
+    <Screen>
+      <BuildingPhase
+        title="REBUILDING YOUR PLAN"
+        subtitle="Applying your new profile"
+        steps={PROFILE_REBUILD_STEPS}
+        progress={buildProgress}
+      />
+      {regenError && (
+        <div style={{position:"absolute",bottom:32,left:24,right:24,fontSize:12,color:"#ff5e5e",textAlign:"center"}}>{regenError}</div>
+      )}
+    </Screen>
   );
 
 
