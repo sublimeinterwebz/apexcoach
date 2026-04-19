@@ -12,18 +12,17 @@ export default function Nutrition() {
   const [weekPlan,    setWeekPlan]    = useState([]);
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
-  // Default to today's day index (Mon=0 ... Sun=6). Clamped when mealPlans is shorter.
-  const todayIdx = (() => {
-    const jsDay = new Date().getDay(); // Sun=0 ... Sat=6
-    return jsDay === 0 ? 6 : jsDay - 1;
-  })();
-  const [selectedDay, setSelectedDay] = useState(todayIdx);
+  const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const todayName = DAY_NAMES[new Date().getDay()];
+  const [selectedDay, setSelectedDay] = useState(0);
 
-  // Clamp selectedDay if the plan has fewer days than expected
+  // Once nutrition loads, snap the selector to today's entry by dayName match
   useEffect(() => {
-    const len = nutrition?.mealPlans?.length;
-    if (len && selectedDay >= len) setSelectedDay(0);
-  }, [nutrition, selectedDay]);
+    const mp = nutrition?.mealPlans;
+    if (!mp?.length) return;
+    const idx = mp.findIndex(d => d?.dayName === todayName);
+    setSelectedDay(idx >= 0 ? idx : 0);
+  }, [nutrition, todayName]);
 
 
   useEffect(() => {

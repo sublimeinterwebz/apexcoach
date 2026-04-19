@@ -276,36 +276,45 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
         // ── Sessions ────────────────────────────────────
         <Card padding="md" style={{flex:1,overflowY:"auto"}}>
           <SectionLabel style={{marginBottom:14}}>SESSION LOG</SectionLabel>
-          {plan?.weekPlan?.map((day,i)=>{
-            const log = logs[i];
-            const status = getDayStatus(day, log);
-            const statusMeta = {
-              done:     { label:"DONE",     bg:C.accentDim,                  border:C.accentBorder,        color:C.accent },
-              today:    { label:"TODAY",    bg:"rgba(196,255,0,0.2)",        border:C.accentBorder,        color:C.accent },
-              upcoming: { label:"UPCOMING", bg:"rgba(0,207,255,0.12)",       border:"rgba(0,207,255,0.35)",color:"#00cfff" },
-              missed:   { label:"MISSED",   bg:"rgba(255,94,138,0.12)",      border:"rgba(255,94,138,0.35)",color:"#ff5e8a" },
-              rest:     { label:"REST",     bg:C.bgDeep,                     border:C.border,              color:C.dim },
-            };
-            const sm = statusMeta[status] || statusMeta.upcoming;
-            return (
-              <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i<(plan.weekPlan.length-1)?`1px solid ${C.border}`:"none"}}>
-                <div style={{width:36,height:36,borderRadius:10,background:status==="done"?C.accentDim:C.bgDeep,border:`1.5px solid ${status==="done"?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,color:status==="done"?C.accent:C.dim}}>
-                  {status==="done"?"✓":status==="rest"?"—":"○"}
+          {(() => {
+            // Render in Sun→Sat order using dayName lookup so display is correct regardless
+            // of what order Gemini returned weekPlan, and logs[i] is keyed by the same Sun→Sat slot.
+            const DAY_NAMES_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+            const wp = plan?.weekPlan || [];
+            const dayMap = {}; wp.forEach(d => { if (d?.dayName) dayMap[d.dayName] = d; });
+            return DAY_NAMES_ORDER.map((name, i) => {
+              const day = dayMap[name] || wp[i]; // fallback for plans without dayName
+              if (!day) return null;
+              const log = logs[i];
+              const status = getDayStatus(day, log);
+              const statusMeta = {
+                done:     { label:"DONE",     bg:C.accentDim,                  border:C.accentBorder,        color:C.accent },
+                today:    { label:"TODAY",    bg:"rgba(196,255,0,0.2)",        border:C.accentBorder,        color:C.accent },
+                upcoming: { label:"UPCOMING", bg:"rgba(0,207,255,0.12)",       border:"rgba(0,207,255,0.35)",color:"#00cfff" },
+                missed:   { label:"MISSED",   bg:"rgba(255,94,138,0.12)",      border:"rgba(255,94,138,0.35)",color:"#ff5e8a" },
+                rest:     { label:"REST",     bg:C.bgDeep,                     border:C.border,              color:C.dim },
+              };
+              const sm = statusMeta[status] || statusMeta.upcoming;
+              return (
+                <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i<6?`1px solid ${C.border}`:"none"}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:status==="done"?C.accentDim:C.bgDeep,border:`1.5px solid ${status==="done"?C.accent:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,color:status==="done"?C.accent:C.dim}}>
+                    {status==="done"?"✓":status==="rest"?"—":"○"}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:status==="done"?C.text:status==="upcoming"||status==="today"?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{day.focus||day.sessionLabel||day.dayName}</div>
+                    {status==="done" && log?.totalVolume>0 ? (
+                      <div style={{fontSize:11,color:C.dim,marginTop:2}}>{log.totalSets} sets · {log.totalVolume.toLocaleString()}kg · {Math.floor((log.durationSecs||0)/60)}min</div>
+                    ) : (
+                      <div style={{fontSize:11,color:C.dim,marginTop:2}}>{day.dayName}{day.estimatedDuration?` · ${day.estimatedDuration}`:""}</div>
+                    )}
+                  </div>
+                  <div style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,flexShrink:0,background:sm.bg,border:`1px solid ${sm.border}`,color:sm.color}}>
+                    {sm.label}
+                  </div>
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:700,color:status==="done"?C.text:status==="upcoming"||status==="today"?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{day.focus||day.sessionLabel||day.dayName}</div>
-                  {status==="done" && log?.totalVolume>0 ? (
-                    <div style={{fontSize:11,color:C.dim,marginTop:2}}>{log.totalSets} sets · {log.totalVolume.toLocaleString()}kg · {Math.floor((log.durationSecs||0)/60)}min</div>
-                  ) : (
-                    <div style={{fontSize:11,color:C.dim,marginTop:2}}>{day.dayName}{day.estimatedDuration?` · ${day.estimatedDuration}`:""}</div>
-                  )}
-                </div>
-                <div style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,flexShrink:0,background:sm.bg,border:`1px solid ${sm.border}`,color:sm.color}}>
-                  {sm.label}
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </Card>
       )}
     </div>

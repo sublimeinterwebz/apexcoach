@@ -344,13 +344,14 @@ export default function Workout() {
 
         {weekPlan.length > 0 && (
           <div style={{display:"flex",gap:8,padding:"0 20px 20px"}}>
-            {weekPlan.map((day,i) => {
+            {DAY_SHORT.map((label,i) => {
+              const day = dayMap[DAY_NAMES[i]] || null;
               const isSelected=i===selectedDay, isToday=i===TODAY_IDX;
               const isRest=!day||day.type==="rest"||day.type==="recovery";
               const tc=day?(TYPE_COLOR[day.type]||C.accent):C.dim;
               return (
                 <button key={i} onClick={()=>setSelectedDay(i)} style={{flex:1,padding:"10px 0 8px",borderRadius:20,display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:isSelected?C.accent:C.bgCard,border:`1.5px solid ${isSelected?C.accent:C.border}`,cursor:"pointer",transition:"all 0.18s"}}>
-                  <span style={{fontSize:9,letterSpacing:1,fontWeight:700,color:isSelected?"#0a0a0a":C.muted}}>{DAY_SHORT[i]}</span>
+                  <span style={{fontSize:9,letterSpacing:1,fontWeight:700,color:isSelected?"#0a0a0a":C.muted}}>{label}</span>
                   <span style={{fontSize:18,fontWeight:800,color:isSelected?"#0a0a0a":C.text,lineHeight:1}}>{weekDates[i]}</span>
                   <div style={{width:5,height:5,borderRadius:"50%",background:isSelected?"rgba(0,0,0,0.35)":isRest?C.border:tc}}/>
                 </button>

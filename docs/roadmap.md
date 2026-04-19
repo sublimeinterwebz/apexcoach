@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `fix-sunday-first-week-order`)
+**Last updated:** 2026-04-19 (commit `fix-sunday-first-week-order-followup`)
 
 ---
 
@@ -146,6 +146,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Sunday-first week order (follow-up — remaining pages)
+
+- **Issue with first fix:** Previous commit fixed the dashboard correctly but three more places were still iterating `weekPlan` directly by array index — they all shifted days when the stored plan was in Mon-first order. Symptom: dashboard showed workouts on Sun/Mon/Tue (correct) but `/workout` showed the same workouts on Thu/Fri/Sat (day strip off by 3).
+- **Fix (`pages/workout.js` day strip):** Changed `weekPlan.map((day,i) => …)` to `DAY_SHORT.map((label,i) => …)` with `dayMap[DAY_NAMES[i]]` lookup. Strip now always renders Sun→Sat and pulls the correct day entry by name.
+- **Fix (`pages/coach.js` sessions list):** Same pattern — sessions list now iterates the fixed Sun→Sat order and looks up each day via dayName, with `logs[i]` correctly paired to the Sun→Sat slot index used at save time.
+- **Fix (`pages/nutrition.js` default day):** `todayIdx` was computed as Mon-first (Sun→6). Replaced with a dayName match against `mealPlans` — selector now snaps to today regardless of plan order. Removed the old clamping effect that's no longer needed.
 
 ### 2026-04-19 — Fix: Sunday-first week order + day mapping
 
