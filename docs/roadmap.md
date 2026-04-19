@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-18 (commit `fcm-data-only-fix`)
+**Last updated:** 2026-04-19 (commit `fix-sunday-regen-loop`)
 
 ---
 
@@ -144,6 +144,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Sunday re-generation loop
+
+- **Bug:** After generating Week N on Sunday, `currentWeek` incremented to N and the app immediately re-rendered with `isSunday = true` for the NEW `currentWeek`. This caused both the dashboard banner and Coach generate button to activate again — prompting the user to generate Week N+1 on the same Sunday they just generated Week N.
+- **Fix (`pages/coach.js`):** When caching the generated plan into `profile.plan`, stamps `generatedAt: new Date().toISOString()`. Added `planGeneratedToday` check (compares `profile.plan.generatedAt` date string to today). Generate button now uses `canGenerate = isSunday && !planGeneratedToday` — active only on Sunday AND only if the current plan wasn't generated today.
+- **Fix (`pages/dashboard.js`):** Same `planGeneratedToday` guard added to `showSundayBanner`. Banner only shows on Sunday when the current plan was generated on a previous Sunday.
+- No extra Firestore reads required — check is against the in-memory/localStorage profile cache. Self-healing: the date check naturally unlocks generation again the following Sunday.
 
 ### 2026-04-18 — Edit Details on plan review screens
 

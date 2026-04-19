@@ -50,8 +50,13 @@ export default function Coach() {
 
   if (loading) return null;
 
-  // Egypt week starts Sunday. Generate button is only active on Sunday.
+  // Egypt week starts Sunday. Generate button is only active on Sunday
+  // AND only if the current plan wasn't generated today (prevents same-Sunday re-triggering).
   const isSunday = new Date().getDay() === 0;
+  const planGeneratedToday = profile?.plan?.generatedAt
+    ? new Date(profile.plan.generatedAt).toDateString() === new Date().toDateString()
+    : false;
+  const canGenerate = isSunday && !planGeneratedToday;
 
   // Day-name → JS day number (0=Sun...6=Sat)
   const DAY_NAME_JS = { Sunday:0, Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6 };
@@ -114,7 +119,7 @@ export default function Coach() {
         await saveWeekPlan(user.uid, currentWeek + 1, newPlan);
         // Update profile week counter
         const { saveUserProfile } = await import("../lib/firebase");
-        const updatedProfile = { ...profile, currentWeek: currentWeek + 1, plan: newPlan };
+        const updatedProfile = { ...profile, currentWeek: currentWeek + 1, plan: { ...newPlan, generatedAt: new Date().toISOString() } };
         await saveUserProfile(user.uid, updatedProfile);
         try { localStorage.setItem(`apex_profile_${user.uid}`, JSON.stringify(updatedProfile)); } catch {}
         setProfile(updatedProfile);
@@ -135,7 +140,7 @@ export default function Coach() {
 
   return (
     <Screen>
-      {phase==="review"     && <ReviewPhase page={page} setPage={setPage} onGenerate={startGeneration} plan={plan} logs={logs} completedLogs={completedLogs} plannedWorkouts={plannedWorkouts} completedWorkouts={completedWorkouts} consistency={consistency} totalVolume={totalVolume} totalSets={totalSets} feedback={feedback} currentWeek={currentWeek} dataLoading={dataLoading} isSunday={isSunday} todayJS={todayJS} DAY_NAME_JS={DAY_NAME_JS} />}
+      {phase==="review"     && <ReviewPhase page={page} setPage={setPage} onGenerate={startGeneration} plan={plan} logs={logs} completedLogs={completedLogs} plannedWorkouts={plannedWorkouts} completedWorkouts={completedWorkouts} consistency={consistency} totalVolume={totalVolume} totalSets={totalSets} feedback={feedback} currentWeek={currentWeek} dataLoading={dataLoading} isSunday={canGenerate} todayJS={todayJS} DAY_NAME_JS={DAY_NAME_JS} />}
       {phase==="generating" && <GeneratingPhase progress={progress} currentStep={genStep} />}
       {phase==="ready"      && <ReadyPhase router={router} currentWeek={currentWeek} />}
       {phase==="review"     && (

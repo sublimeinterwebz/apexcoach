@@ -99,9 +99,13 @@ export default function Dashboard() {
     ? Object.values(dayData.blocks).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
     : (dayData?.exercises?.length || 0);
 
-  // Sunday = new week in Egypt. Show generate banner if it's Sunday and user has a plan.
+  // Sunday = new week in Egypt. Show generate banner if it's Sunday, user has a plan,
+  // AND the current plan wasn't generated today (prevents re-prompting the same Sunday).
   const isSunday = new Date().getDay() === 0;
-  const showSundayBanner = isSunday && !!plan && !dismissedSundayBanner;
+  const planGeneratedToday = profile?.plan?.generatedAt
+    ? new Date(profile.plan.generatedAt).toDateString() === new Date().toDateString()
+    : false;
+  const showSundayBanner = isSunday && !!plan && !planGeneratedToday && !dismissedSundayBanner;
 
   return (
     <Screen>
