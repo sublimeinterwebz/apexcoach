@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `fix-dashboard-day-strip`)
+**Last updated:** 2026-04-19 (commit `fix-profile-edit-week-days`)
 
 ---
 
@@ -146,6 +146,10 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Profile edit day picker also Sunday-first
+
+- `pages/profile/edit.js` had its own copy of `WEEK_DAYS` that I missed in the original sweep. Now matches onboarding (Sun→Sat). Verified across all pages: no Mon-first day arrays remain anywhere in the codebase.
 
 ### 2026-04-19 — Fix: Dashboard day strip (final piece of the Sunday-first set)
 
