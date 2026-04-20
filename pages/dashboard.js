@@ -4,11 +4,9 @@ import { Screen, BottomNav, C } from "../components/shared";
 import { Card, StatCell, SectionLabel, F, FW } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWorkoutLog } from "../lib/firebase";
+import { DAY_SHORT, DAY_NAMES, TODAY_SLOT, buildDaySlots, getWeekDates } from "../lib/dayMapping";
 
-// Sun-first order — matches Egypt week start and Gemini plan output
-const DAY_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const TODAY_IDX = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
+const TODAY_IDX = TODAY_SLOT();
 
 const TYPE_COLOR = {
   strength:     C.accent,
@@ -17,25 +15,6 @@ const TYPE_COLOR = {
   recovery:     "#aa88ff",
   rest:         C.dim,
 };
-
-// Week dates starting from Sunday
-function getWeekDates() {
-  const today = new Date();
-  const sun   = new Date(today);
-  sun.setDate(today.getDate() - today.getDay());
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(sun);
-    d.setDate(sun.getDate() + i);
-    return d.getDate();
-  });
-}
-
-// Lookup by dayName so we never depend on weekPlan array order
-function buildDayMap(weekPlan) {
-  const map = {};
-  (weekPlan || []).forEach(d => { if (d?.dayName) map[d.dayName] = d; });
-  return map;
-}
 
 function greetingTag() {
   const h = new Date().getHours();
@@ -86,8 +65,8 @@ export default function Dashboard() {
   const weekDates   = getWeekDates();
 
   const weekPlan = plan?.weekPlan || [];
-  const dayMap   = buildDayMap(weekPlan);
-  const dayData  = dayMap[DAY_NAMES[selectedDay]] || null;
+  const daySlots = buildDaySlots(weekPlan);
+  const dayData  = daySlots[selectedDay] || null;
 
   // Nutrition — resilient to schema variations
   const nutrition = plan?.nutrition || null;
@@ -181,7 +160,7 @@ export default function Dashboard() {
         {/* ── DAY STRIP ── */}
         <div style={{ padding:"28px 20px 0", display:"flex", gap:8 }}>
           {DAY_SHORT.map((d, i) => {
-            const day      = dayMap[DAY_NAMES[i]] || null;
+            const day      = daySlots[i] || null;
             const isSelected = i === selectedDay;
             const isToday  = i === TODAY_IDX;
             const isRest   = !day || day.type === "rest" || day.type === "recovery";

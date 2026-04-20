@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `fix-profile-edit-week-days`)
+**Last updated:** 2026-04-19 (commit `shared-day-mapping-helper`)
 
 ---
 
@@ -146,6 +146,13 @@ Ideas raised in conversation but not committed. Keep these visible so they don't
 ## Release Notes
 
 Lightweight changelog. Add new entries to the top.
+
+### 2026-04-19 — Fix: Shared dayMapping lib, workout page dual-load
+
+- **Root cause of the workout-page-disagrees-with-home bug:** The workout page was reading `profile.plan` (cache) only and never refreshing from Firestore. Dashboard reads cache for fast render and *then* refreshes from Firestore as source of truth. If the two diverged for any reason (timing, partial save, stale localStorage), the two pages would render different data even with identical lookup logic. Compounding this: my earlier dayName-string lookups assumed Gemini always returned full names like `"Monday"` — short names (`"Mon"`) or different array orderings would silently fall through to the visual rest state.
+- **Fix (data layer):** Workout page now does the same dual-load pattern as dashboard — fast render from cache, then refresh from Firestore. Both pages can no longer disagree about what data they're showing.
+- **Fix (mapping layer):** New `lib/dayMapping.js` is the single source of truth for day-to-slot mapping. Exports `DAY_SHORT`, `DAY_NAMES`, `TODAY_SLOT()`, `buildDaySlots(weekPlan)` (returns 7-slot Sun→Sat array), `resolveArrayIdx(weekPlan, slotIdx)` (slot → array position for in-place edits), `slotForEntry(d, fallbackIdx)`, and `getWeekDates()`. The resolver tolerates: full names, 3-letter names with multiple capitalisations, `dayIndex` field, and array-position fallback. So old Mon-first plans, partial plans, and any Gemini quirks all render correctly.
+- **Refactored:** `pages/dashboard.js`, `pages/workout.js`, `pages/coach.js`, `pages/nutrition.js` all import from the shared lib. No more inline `DAY_SHORT`/`DAY_NAMES`/`buildDayMap`/`getWeekDates` copies anywhere. Convention going forward (documented in `apexcontext.md`): never read `weekPlan[i]` directly in display code; always go through `buildDaySlots`.
 
 ### 2026-04-19 — Fix: Profile edit day picker also Sunday-first
 

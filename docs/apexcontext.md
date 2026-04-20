@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-19 (commit `fix-profile-edit-week-days`)
+**Last updated:** 2026-04-19 (commit `shared-day-mapping-helper`)
 
 ---
 
@@ -90,7 +90,8 @@ data/
 lib/
 ├── firebase.js          Firebase init, auth helpers, Firestore CRUD, applyPlanEdit helper
 ├── useRequireAuth.js    Redirects to / if not authenticated, returns { user, profile, setProfile, loading }
-└── AuthContext.js       React context provider (user + profile cache in localStorage)
+├── AuthContext.js       React context provider (user + profile cache in localStorage)
+└── dayMapping.js        Single source of truth for day-name → Sun-first slot mapping. Every page imports DAY_SHORT, DAY_NAMES, TODAY_SLOT, buildDaySlots, resolveArrayIdx, getWeekDates, slotForEntry from here. Handles short names, full names, dayIndex field, and array-position fallback so the UI is robust against any plan ordering Gemini returns.
 
 docs/                    This directory — project bible
 ├── apexcontext.md       ← you are here
@@ -412,7 +413,7 @@ Documenting these saves future sessions debugging time.
 - **Session types** — Gemini returns `strength`, `hypertrophy`, `conditioning`, `rest`, `recovery`. Never assume `type === "workout"`. Count workouts as any non-rest type
 - **Nutrition schema** — three formats in the wild (see §5.2). Always fall back: `mealPlans` → `mealExamples` → `meals` → empty-state card
 - **`dailyCalories` vs `calories`** — older plans use `calories`. Read with fallback chain
-- **Day ordering** — `generate-plan` now always outputs weekPlan Sunday-first (Sunday=day 1, Saturday=day 7). Dashboard and workout pages use a `buildDayMap()` / `resolveWeekPlanIdx()` pattern that looks up entries by `dayName` string — never by array index — so they handle both old Mon-first and new Sun-first plans correctly. `DAY_SHORT` and `WEEK_DAYS` both start Sunday. `TODAY_IDX` = `new Date().getDay()` (0=Sun … 6=Sat, no offset).
+- **Day ordering** — `generate-plan` outputs weekPlan Sunday-first. All pages use `lib/dayMapping.js` (`buildDaySlots(weekPlan)` returns a 7-slot Sun→Sat array; `resolveArrayIdx(weekPlan, slotIdx)` maps a slot back to its array position for in-place edits). The slot resolver tolerates short names ("Mon"), full names ("Monday"), entry `dayIndex`, and falls back to array position — so old Mon-first plans, partial plans, and Gemini quirks all render correctly. **Never** read `weekPlan[i]` directly in display code; always go through `buildDaySlots`. **Never** redefine `DAY_SHORT`/`DAY_NAMES`/`TODAY_IDX` inline; import from `lib/dayMapping`.
 - **`trainingDaysOfWeek`** uses short 3-letter strings (`"Mon"`, `"Tue"`...). `plan.weekPlan[].dayName` uses full names (`"Monday"`)
 - **Exercise names** are stored lowercase from the Kaggle CSV. Always display with `textTransform: "capitalize"` — don't mutate the stored value
 - **`/api/generate-plan` 504s** — Gemini occasionally exceeds the 60s `maxDuration` cap. Vercel returns an HTML error page ("An error occurred..."), not JSON. Every caller must safe-parse: check `r.ok` and wrap `r.json()` in try/catch — otherwise the client throws `Unexpected token 'A'`. Profile edit, onboarding, and coach regen all do this as of `safe-parse-plan-response`

@@ -4,6 +4,7 @@ import { Screen, BottomNav, C } from "../components/shared";
 import { FAB, Icon, Card, Chip, Button, SectionLabel, StatCell, BuildingPhase } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWeekLogs, getWeekFeedback, saveWeekPlan } from "../lib/firebase";
+import { buildDaySlots } from "../lib/dayMapping";
 
 const F = "'Lexend', sans-serif";
 const GEN_STEPS = [
@@ -277,13 +278,9 @@ function ReviewPhase({ page, setPage, onGenerate, plan, logs, completedLogs, pla
         <Card padding="md" style={{flex:1,overflowY:"auto"}}>
           <SectionLabel style={{marginBottom:14}}>SESSION LOG</SectionLabel>
           {(() => {
-            // Render in Sun→Sat order using dayName lookup so display is correct regardless
-            // of what order Gemini returned weekPlan, and logs[i] is keyed by the same Sun→Sat slot.
-            const DAY_NAMES_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-            const wp = plan?.weekPlan || [];
-            const dayMap = {}; wp.forEach(d => { if (d?.dayName) dayMap[d.dayName] = d; });
-            return DAY_NAMES_ORDER.map((name, i) => {
-              const day = dayMap[name] || wp[i]; // fallback for plans without dayName
+            // Render in Sun→Sat order using shared slot helper so display matches the rest of the app.
+            const slots = buildDaySlots(plan?.weekPlan || []);
+            return slots.map((day, i) => {
               if (!day) return null;
               const log = logs[i];
               const status = getDayStatus(day, log);

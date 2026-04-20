@@ -5,11 +5,10 @@ import { ExerciseRow, ExercisePicker, ExerciseConfigSheet, BLOCK_COLORS, BLOCK_L
 import ExerciseGif from "../components/ExerciseGif";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog, applyPlanEdit } from "../lib/firebase";
+import { DAY_SHORT, DAY_NAMES, TODAY_SLOT, buildDaySlots, resolveArrayIdx, getWeekDates } from "../lib/dayMapping";
 
 const F = "'Lexend', sans-serif";
-const DAY_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const TODAY_IDX = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
+const TODAY_IDX = TODAY_SLOT();
 
 const TYPE_COLOR = {
   strength:"#c4ff00", hypertrophy:"#00cfff", conditioning:"#ffaa00", recovery:"#aa88ff", rest:C.dim,
@@ -24,19 +23,7 @@ const BLOCK_META = {
   cooldown:  { label:"Cooldown",   color:C.muted   },
 };
 
-function buildDayMap(weekPlan) {
-  const map = {};
-  (weekPlan || []).forEach(d => { if (d?.dayName) map[d.dayName] = d; });
-  return map;
-}
-
-function getWeekDates() {
-  const today = new Date();
-  const sun = new Date(today);
-  sun.setDate(today.getDate() - today.getDay());
-  return Array.from({length:7}, (_,i) => { const d=new Date(sun); d.setDate(sun.getDate()+i); return d.getDate(); });
-}
-
+// Resolves any plan entry to its canonical Sun→Sat slot index (0=Sun .. 6=Sat).
 function flattenBlocks(blocks) {
   if (!blocks) return [];
   const result = [];
@@ -84,8 +71,11 @@ export default function Workout() {
       setPlanLoading(true);
       try {
         const week = profile?.currentWeek || 1;
+        // Fast render from profile cache (may be stale)
+        if (profile?.plan?.weekPlan) setWeekPlan(profile.plan.weekPlan);
+        // Source of truth from Firestore
         const [p, existingLog] = await Promise.all([
-          profile?.plan ? Promise.resolve(profile.plan) : getWeekPlan(user.uid, week),
+          getWeekPlan(user.uid, week),
           getWorkoutLog(user.uid, week, TODAY_IDX),
         ]);
         if (p?.weekPlan) setWeekPlan(p.weekPlan);
@@ -94,21 +84,13 @@ export default function Workout() {
       setPlanLoading(false);
     }
     load();
-  }, [user]);
+  }, [user, profile?.currentWeek]);
 
   if (loading) return null;
 
   const weekDates = getWeekDates();
-  const dayMap    = buildDayMap(weekPlan);
-  const dayData   = dayMap[DAY_NAMES[selectedDay]] || null;
-
-  // Given a display-slot index (0=Sun … 6=Sat), return the actual weekPlan array index
-  // so edits target the correct entry regardless of what order Gemini returned the array.
-  const resolveWeekPlanIdx = (slotIdx) => {
-    const name = DAY_NAMES[slotIdx];
-    const idx  = weekPlan.findIndex(d => d?.dayName === name);
-    return idx >= 0 ? idx : slotIdx; // fallback to slotIdx for plans without dayName
-  };
+  const daySlots  = buildDaySlots(weekPlan);
+  const dayData   = daySlots[selectedDay] || null;
   const flat      = flattenBlocks(dayData?.blocks);
   const loggable  = getLoggable(flat);
   const curEx     = loggable[exIdx];
@@ -141,7 +123,7 @@ export default function Workout() {
   };
 
   const handleRemoveExercise = (dayIdx, blockKey, exerciseIdx) => {
-    const realIdx = resolveWeekPlanIdx(dayIdx);
+    const realIdx = resolveArrayIdx(weekPlan, dayIdx);
     const day = weekPlan[realIdx];
     if (!day?.blocks?.[blockKey]) return;
     const removed = day.blocks[blockKey][exerciseIdx];
@@ -151,7 +133,7 @@ export default function Workout() {
   };
 
   const handleMoveExercise = (dayIdx, blockKey, fromIdx, direction) => {
-    const realIdx = resolveWeekPlanIdx(dayIdx);
+    const realIdx = resolveArrayIdx(weekPlan, dayIdx);
     const day = weekPlan[realIdx];
     if (!day?.blocks?.[blockKey]) return;
     const arr = [...day.blocks[blockKey]];
@@ -174,7 +156,7 @@ export default function Workout() {
 
   // "Edit details" on existing exercise → open config directly
   const openEditConfig = (dayIdx, blockKey, exerciseIdx) => {
-    const realIdx = resolveWeekPlanIdx(dayIdx);
+    const realIdx = resolveArrayIdx(weekPlan, dayIdx);
     const ex = weekPlan[realIdx]?.blocks?.[blockKey]?.[exerciseIdx];
     if (!ex) return;
     setConfigState({
@@ -188,7 +170,7 @@ export default function Workout() {
   // User picked an exercise from the DB — close picker, open config sheet to set sets/reps
   const handlePick = (picked) => {
     const { mode, block, exerciseIndex, dayIndex } = pickerState;
-    const realIdx = resolveWeekPlanIdx(dayIndex);
+    const realIdx = resolveArrayIdx(weekPlan, dayIndex);
     // For replace, pre-fill with the current exercise's sets/reps so user can keep or edit them
     const current = mode === "replace" ? weekPlan[realIdx]?.blocks?.[block]?.[exerciseIndex] : null;
     closePicker();
@@ -203,7 +185,7 @@ export default function Workout() {
   // Config sheet confirmed — write the exercise with its chosen sets/reps to the plan
   const handleConfigConfirm = (values) => {
     const { mode, block, exerciseIndex, dayIndex, exerciseName } = configState;
-    const realIdx = resolveWeekPlanIdx(dayIndex);
+    const realIdx = resolveArrayIdx(weekPlan, dayIndex);
     const day = weekPlan[realIdx];
     if (!day) { closeConfig(); return; }
 
@@ -345,7 +327,7 @@ export default function Workout() {
         {weekPlan.length > 0 && (
           <div style={{display:"flex",gap:8,padding:"0 20px 20px"}}>
             {DAY_SHORT.map((label,i) => {
-              const day = dayMap[DAY_NAMES[i]] || null;
+              const day = daySlots[i] || null;
               const isSelected=i===selectedDay, isToday=i===TODAY_IDX;
               const isRest=!day||day.type==="rest"||day.type==="recovery";
               const tc=day?(TYPE_COLOR[day.type]||C.accent):C.dim;

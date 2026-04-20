@@ -4,6 +4,7 @@ import { Screen, BottomNav, C } from "../components/shared";
 import { Card, StatCell, SectionLabel, DayPill, F, FS, FW } from "../components/ui";
 import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan } from "../lib/firebase";
+import { DAY_NAMES, TODAY_SLOT, slotForEntry } from "../lib/dayMapping";
 
 export default function Nutrition() {
   const router  = useRouter();
@@ -12,17 +13,17 @@ export default function Nutrition() {
   const [weekPlan,    setWeekPlan]    = useState([]);
   const [planLoading, setPlanLoading] = useState(true);
   const [expanded,    setExpanded]    = useState(null);
-  const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const todayName = DAY_NAMES[new Date().getDay()];
+  const todaySlot = TODAY_SLOT();
   const [selectedDay, setSelectedDay] = useState(0);
 
-  // Once nutrition loads, snap the selector to today's entry by dayName match
+  // Once nutrition loads, snap selector to today's entry using the same robust slot resolution
+  // the rest of the app uses (handles short names, full names, dayIndex, array fallback).
   useEffect(() => {
     const mp = nutrition?.mealPlans;
     if (!mp?.length) return;
-    const idx = mp.findIndex(d => d?.dayName === todayName);
+    const idx = mp.findIndex((d, i) => slotForEntry(d, i) === todaySlot);
     setSelectedDay(idx >= 0 ? idx : 0);
-  }, [nutrition, todayName]);
+  }, [nutrition, todaySlot]);
 
 
   useEffect(() => {
