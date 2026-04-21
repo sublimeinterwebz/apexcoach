@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-21 (commit `optimize fonts and a11y`)
+**Last updated:** 2026-04-21 (commit `5120f63`)
 
 ---
 
@@ -171,6 +171,8 @@ Produced by onboarding and editable via `/profile/edit`. Gemini reads this at pl
   jobType: "sedentary",                 // "sedentary" | "light" | "active" | "very active"
   sleepHours: "7",
   stressLevel: "medium",                // "low" | "medium" | "high"
+  sessionDuration: "60 min",            // "30 min" | "45 min" | "60 min" | "90+ min"
+  trainingStyle: "bodybuilding",        // "bodybuilding" | "powerlifting" | "calisthenics" | "cross_training" | "general"
 
   // Push notifications — per-device token array
   fcmTokens: ["token_device_1", "token_device_2"],
@@ -321,19 +323,18 @@ Collected on the finish screen after the last session of the week.
 
 ### 7.1 Plan generation (`/api/generate-plan.js`)
 
-**Model:** Gemini 2.5 Flash · `temperature: 0.6` · `maxOutputTokens: 12000` · JSON response mode.
+**Model:** Gemini 2.5 Flash · `temperature: 0.6` · `maxOutputTokens: 12000` · `responseSchema` (strict JSON output).
 
 **Prompt structure (in order):**
-1. **System role** — "You are an elite fitness coach designing a personalized weekly training and nutrition plan."
-2. **User Profile** — all profile fields + computed **TDEE** (Mifflin-St Jeor × activity multiplier from jobType × training days) + **target calories** (goal-adjusted: fat_loss −400, muscle_gain +300, maintain 0)
-3. **Previous Week Summary** — plan summary + feedback (difficulty, energy, completion rate)
-4. **User's Previous-Week Edits** — human-readable bullet list of every entry in `plans/week_N.edits[]` + instruction: *"Honor these preferences in the new plan. If the user swapped X for Y, prefer Y in the same block/day..."*
-5. **Coaching Instructions** — weekly structure (rest placement, recovery windows), blocks (warmup/main/accessory/finisher/core/cooldown), **~300 filtered exercise names** from `data/exercises.json` constrained by user's equipment + muscle groups
-6. **Nutrition Instructions** — TDEE-locked daily calories, 7-day varied meal plans, ~8-word meal descriptions (to stay inside token budget)
-7. **Coaching Philosophy** — 4 principles: progressive overload, individuality, recovery, compound first
-8. **OUTPUT FORMAT** — strict JSON spec (matches §5.2 schema)
+1. **System Instruction** — "You are an elite fitness coach designing a personalized weekly training and nutrition plan..." + core coaching principles.
+2. **User Profile** — all profile fields (including new duration limits and training style) + computed **TDEE** (Mifflin-St Jeor × activity multiplier) + **target calories** (goal-adjusted: fat_loss −400, muscle_gain +300, maintain 0).
+3. **Previous Week Summary** — plan summary + feedback (difficulty, energy, completion rate).
+4. **User's Previous-Week Edits** — human-readable bullet list of every entry in `plans/week_N.edits[]` + instruction: *"Honor these preferences in the new plan..."*.
+5. **Coaching Instructions** — weekly structure, blocks, **~300 filtered exercise names** categorized strictly into `PRIMARY COMPOUNDS` and `ACCESSORY / ISOLATION` via internal keyword engine.
+6. **Nutrition Instructions** — TDEE-locked daily calories, 7-day varied meal plans with batch-prep realism.
+7. **responseSchema** — rigid JSON definition strictly mapped to §5.2 schema. Gemini validates against this schema natively via `v1beta`.
 
-The Gemini prompt is the heaviest single file in the app and the primary surface for changing coaching quality. Adjust temperature, token budget, or coaching philosophy here.
+The Gemini prompt + schema is the heaviest single file in the app and the primary surface for changing coaching quality. Adjust temperature, token budget, or coaching philosophy here.
 
 ### 7.2 Plan adjustment (`/api/adjust-plan.js`)
 
