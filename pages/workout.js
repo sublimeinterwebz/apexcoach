@@ -329,7 +329,7 @@ export default function Workout() {
             {DAY_SHORT.map((label,i) => {
               const day = daySlots[i] || null;
               const isSelected=i===selectedDay, isToday=i===TODAY_IDX;
-              const isRest=!day||day.type==="rest"||day.type==="recovery";
+              const isRest=!day||(day.type||"").toLowerCase().includes("rest")||(day.type||"").toLowerCase().includes("recovery");
               const tc=day?(TYPE_COLOR[day.type]||C.accent):C.dim;
               return (
                 <button key={i} onClick={()=>setSelectedDay(i)} style={{flex:1,padding:"10px 0 8px",borderRadius:20,display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:isSelected?C.accent:C.bgCard,border:`1.5px solid ${isSelected?C.accent:C.border}`,cursor:"pointer",transition:"all 0.18s"}}>
@@ -345,7 +345,7 @@ export default function Workout() {
         <div style={{flex:1,padding:"0 20px",overflowY:"auto",paddingBottom:110}}>
           {!dayData ? (
             <div style={{textAlign:"center",padding:"40px 0",color:C.dim,fontSize:14}}>No plan yet. Generate from dashboard.</div>
-          ) : dayData.type==="rest"||dayData.type==="recovery" ? (
+          ) : (dayData.type||"").toLowerCase().includes("rest")||(dayData.type||"").toLowerCase().includes("recovery") ? (
             <RestView day={dayData} isToday={selectedDay===TODAY_IDX} />
           ) : (
             <WorkoutView

@@ -215,7 +215,7 @@ NUTRITION INSTRUCTIONS
             day: { type: "STRING" },
             dayName: { type: "STRING" },
             dayIndex: { type: "INTEGER" },
-            type: { type: "STRING" },
+            type: { type: "STRING", description: "Must be one of: strength, hypertrophy, conditioning, rest, recovery", enum: ["strength", "hypertrophy", "conditioning", "rest", "recovery"] },
             focus: { type: "STRING" },
             muscleGroups: { type: "STRING" },
             estimatedDuration: { type: "STRING" },

@@ -163,7 +163,7 @@ export default function Dashboard() {
             const day      = daySlots[i] || null;
             const isSelected = i === selectedDay;
             const isToday  = i === TODAY_IDX;
-            const isRest   = !day || day.type === "rest" || day.type === "recovery";
+            const isRest   = !day || (day.type || "").toLowerCase().includes("rest") || (day.type || "").toLowerCase().includes("recovery");
             const typeColor= day ? (TYPE_COLOR[day.type] || C.accent) : C.dim;
             return (
               <button key={i} onClick={() => setSelectedDay(i)} style={{
@@ -189,7 +189,7 @@ export default function Dashboard() {
             <NoPlanCard profile={profile} user={user} onGenerated={p => setPlan(p)} />
           ) : !dayData ? (
             <EmptyCard />
-          ) : dayData.type === "rest" || dayData.type === "recovery" ? (
+          ) : (dayData.type || "").toLowerCase().includes("rest") || (dayData.type || "").toLowerCase().includes("recovery") ? (
             <RestCard dayData={dayData} selectedDay={selectedDay} onViewWorkout={() => router.push(`/workout?day=${selectedDay}`)} />
           ) : (
             <WorkoutCard dayData={dayData} mainCount={mainCount} calories={calories} selectedDay={selectedDay} completedToday={completedToday} onStart={() => router.push(`/workout?day=${selectedDay}`)} />

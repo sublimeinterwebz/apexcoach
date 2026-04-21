@@ -100,7 +100,7 @@ export default function Nutrition() {
                     e.g. Saturday may be marked "rest" in mealPlans but "strength" in weekPlan. */}
                 {(()=>{
                   const trainingNames = weekPlan.length > 0
-                    ? new Set(weekPlan.filter(d => d.type !== "rest" && d.type !== "recovery").map(d => d.dayName))
+                    ? new Set(weekPlan.filter(d => !(d.type || "").toLowerCase().includes("rest") && !(d.type || "").toLowerCase().includes("recovery")).map(d => d.dayName))
                     : null;
                   const isTraining = (day) => trainingNames ? trainingNames.has(day.dayName) : day.type === "training";
                   return (
