@@ -4,7 +4,7 @@
 import { C } from "../shared";
 
 export { C };
-export const F = "'Lexend', sans-serif";
+export const F = "var(--font-lexend), sans-serif";
 
 // Spacing scale (multiples of 4)
 export const S = {

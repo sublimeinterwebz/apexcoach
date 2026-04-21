@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { Screen, BottomNav, C } from "../components/shared";
 import { useRequireAuth } from "../lib/useRequireAuth";
 
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 
 const QUICK = [
   "Should I train with muscle soreness?",

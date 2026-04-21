@@ -4,6 +4,14 @@ import { useState } from "react";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 import InstallPrompt from "../components/ui/InstallPrompt";
 import { useFCM } from "../lib/useFCM";
+import { Lexend } from "next/font/google";
+
+const lexend = Lexend({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
+  variable: "--font-lexend",
+});
 
 // Handles notification permission banner only.
 // System notifications are delivered via firebase-messaging-sw.js (no foreground duplicate).
@@ -28,7 +36,7 @@ function FCMProvider() {
         background: "#1c1d21", border: "1px solid #2a2b30", borderRadius: 14,
         padding: "12px 14px", display: "flex", alignItems: "center", gap: 12,
         boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
-        fontFamily: "'Lexend', sans-serif",
+        fontFamily: "var(--font-lexend), sans-serif",
         animation: "apexSlideUp 0.3s cubic-bezier(0.22,1,0.36,1) forwards",
       }}>
         <div style={{
@@ -49,7 +57,7 @@ function FCMProvider() {
           style={{
             background: "#c4ff00", border: "none", borderRadius: 8,
             padding: "6px 12px", fontSize: 11, fontWeight: 800,
-            color: "#0a0a0a", cursor: "pointer", fontFamily: "'Lexend', sans-serif", flexShrink: 0,
+            color: "#0a0a0a", cursor: "pointer", fontFamily: "var(--font-lexend), sans-serif", flexShrink: 0,
           }}
         >Enable</button>
         <button
@@ -95,23 +103,12 @@ export default function App({ Component, pageProps }) {
         {/* Splash screen color */}
         <meta name="msapplication-TileColor" content="#111214" />
         <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
-
-        {/* Fonts */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&display=swap"
-          media="print"
-          onLoad="this.media='all'"
-        />
-        <noscript>
-          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&display=swap" />
-        </noscript>
       </Head>
-      <FCMProvider />
-      <Component {...pageProps} />
-      <InstallPrompt />
+      <div className={lexend.variable}>
+        <FCMProvider />
+        <Component {...pageProps} />
+        <InstallPrompt />
+      </div>
     </AuthProvider>
   );
 }

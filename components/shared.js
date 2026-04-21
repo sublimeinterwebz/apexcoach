@@ -17,7 +17,7 @@ export const C = {
 };
 
 // ── Font helper ────────────────────────────────────────
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 
 // ── Input style ────────────────────────────────────────
 export const inputStyle = {

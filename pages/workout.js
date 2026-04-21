@@ -7,7 +7,7 @@ import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, saveWorkoutLog, saveWeekFeedback, getWorkoutLog, applyPlanEdit } from "../lib/firebase";
 import { DAY_SHORT, DAY_NAMES, TODAY_SLOT, buildDaySlots, resolveArrayIdx, getWeekDates } from "../lib/dayMapping";
 
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 const TODAY_IDX = TODAY_SLOT();
 
 const TYPE_COLOR = {

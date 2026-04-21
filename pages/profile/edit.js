@@ -8,7 +8,7 @@ import ExerciseGif from "../../components/ExerciseGif";
 import ExerciseConfigSheet from "../../components/ui/ExerciseConfigSheet";
 import { BuildingPhase, useBuildingProgress } from "../../components/ui";
 
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 const STEPS = ["Body","Health","Lifestyle","Goals"];
 const PROFILE_REBUILD_STEPS = [
   "Saving your profile",

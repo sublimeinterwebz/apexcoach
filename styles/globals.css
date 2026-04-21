@@ -3,7 +3,7 @@
 html, body {
   background: #111214;
   color: #e8e9ec;
-  font-family: 'Lexend', sans-serif;
+  font-family: var(--font-lexend), sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }

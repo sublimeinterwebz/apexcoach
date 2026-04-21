@@ -402,7 +402,7 @@ function NoPlanCard({ profile, user, onGenerated }) {
       <div style={{ fontSize:22, fontWeight:800, color:C.muted, letterSpacing:-0.5, marginBottom:8 }}>NO PLAN YET</div>
       <div style={{ fontSize:13, color:C.dim, lineHeight:1.6, marginBottom:20 }}>Generate your personalized AI plan to get started.</div>
       {error && <div style={{ fontSize:11, color:"#ff5e5e", marginBottom:12 }}>{error}</div>}
-      <button onClick={generate} disabled={loading} style={{ width:"100%", padding:"15px", background:C.accent, border:"none", borderRadius:14, fontFamily:"'Lexend',sans-serif", fontSize:14, fontWeight:800, color:"#0a0a0a", cursor:loading?"default":"pointer", opacity:loading?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+      <button onClick={generate} disabled={loading} style={{ width:"100%", padding:"15px", background:C.accent, border:"none", borderRadius:14, fontFamily:"var(--font-lexend), sans-serif", fontSize:14, fontWeight:800, color:"#0a0a0a", cursor:loading?"default":"pointer", opacity:loading?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
         {loading && <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#0a0a0a", animation:"spin 0.8s linear infinite" }}/>}
         {loading ? "Generating..." : "Generate My Plan"}
       </button>

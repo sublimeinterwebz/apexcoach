@@ -6,7 +6,7 @@ import { useRequireAuth } from "../lib/useRequireAuth";
 import { getWeekPlan, getWeekLogs, getWeekFeedback, saveWeekPlan } from "../lib/firebase";
 import { buildDaySlots } from "../lib/dayMapping";
 
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 const GEN_STEPS = [
   "Reading your workout history",
   "Analyzing performance & feedback",

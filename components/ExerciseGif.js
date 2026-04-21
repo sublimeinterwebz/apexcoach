@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { C } from "./shared";
 
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 
 export default function ExerciseGif({ exerciseName }) {
   const [open,    setOpen]    = useState(false);

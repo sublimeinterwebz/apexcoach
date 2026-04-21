@@ -7,7 +7,7 @@ import { BuildingPhase, useBuildingProgress } from "../components/ui";
 import { signInWithGoogle, signUpWithEmail, signInWithEmail, signInAnonymously, saveUserProfile, saveWeekPlan } from "../lib/firebase";
 import { useAuth } from "../lib/AuthContext";
 
-const F = "'Lexend', sans-serif";
+const F = "var(--font-lexend), sans-serif";
 const STEPS = ["Profile", "Health", "Lifestyle", "Goals"];
 
 const DIETARY_OPTIONS = ["No Restrictions","Vegetarian","Vegan","Keto","Halal","Gluten-Free","Dairy-Free","Nut Allergy","Low Carb"];
@@ -237,7 +237,7 @@ function IntroScreen({ user, onStart }) {
     <div style={{
       minHeight: "100dvh",
       background: "#0a0a0a",
-      fontFamily: "'Lexend', sans-serif",
+      fontFamily: "var(--font-lexend), sans-serif",
       display: "flex",
       flexDirection: "column",
       position: "relative",
@@ -348,7 +348,7 @@ function IntroScreen({ user, onStart }) {
             background: "#c4ff00",
             border: "none", borderRadius: 100,
             fontSize: 16, fontWeight: 800,
-            color: "#0a0a0a", fontFamily: "'Lexend', sans-serif",
+            color: "#0a0a0a", fontFamily: "var(--font-lexend), sans-serif",
             cursor: "pointer", letterSpacing: 0.2,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}
@@ -539,7 +539,7 @@ function PlanReviewScreen({ plan, profile, user, setProfile, onPlanUpdate, onCom
                 <div key={i} style={{ borderRadius:12, overflow:"hidden", border:`1px solid ${isOpen?C.accentBorder:C.border}`, transition:"border-color 0.2s" }}>
                   <button
                     onClick={() => !isRest && setExpandedDay(isOpen?null:i)}
-                    style={{ width:"100%", display:"flex", alignItems:"center", gap:12, padding:"11px 12px", background:isOpen?C.accentDim:C.bgDeep, border:"none", cursor:isRest?"default":"pointer", fontFamily:"'Lexend',sans-serif", transition:"background 0.2s" }}
+                    style={{ width:"100%", display:"flex", alignItems:"center", gap:12, padding:"11px 12px", background:isOpen?C.accentDim:C.bgDeep, border:"none", cursor:isRest?"default":"pointer", fontFamily:"var(--font-lexend), sans-serif", transition:"background 0.2s" }}
                   >
                     <div style={{ width:32, textAlign:"center", fontSize:10, color:isOpen?C.accent:C.muted, fontWeight:700, flexShrink:0 }}>{day.dayName||`D${i+1}`}</div>
                     <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
