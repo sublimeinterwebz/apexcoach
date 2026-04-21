@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-19 (commit `shared-day-mapping-helper`)
+**Last updated:** 2026-04-21 (commit `optimize fonts and a11y`)
 
 ---
 
@@ -33,7 +33,7 @@ AI-powered fitness coach PWA. Users complete onboarding (body, health, lifestyle
 | AI                 | Gemini 2.5 Flash (`GEMINI_API_KEY` env var)        |
 | Exercise data      | Kaggle-sourced CSV → `data/exercises.json` (1,324 exercises), GIFs via ExerciseDB RapidAPI (`EXERCISEDB_API_KEY`) |
 | PWA                | `next-pwa`                                         |
-| Typography         | Lexend (Google Fonts)                              |
+| Typography         | Lexend (`next/font/google`)                        |
 | Styling            | Inline CSS-in-JS with shared tokens via `components/ui/tokens.js` |
 
 No TypeScript. No Tailwind. No CSS modules. Plain JS + inline styles by design, to stay fast.

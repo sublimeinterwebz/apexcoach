@@ -8,7 +8,7 @@
 - If a design convention changes (e.g. default card padding), update §5 and explain why in the release note at the bottom
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `unified-building-phase`)
+**Last updated:** 2026-04-21 (commit `optimize fonts and a11y`)
 
 ---
 
@@ -28,9 +28,9 @@ If a new screen needs a new color or primitive, that's a signal to think harder 
 
 ## 2. Typography
 
-**Family:** Lexend (Google Fonts)  
-**Import:** already set up in `pages/_app.js`, applied globally  
-**Reference constant:** `F` from `components/ui/tokens.js` → `"'Lexend', sans-serif"`
+**Family:** Lexend (`next/font/google`)  
+**Import:** already set up in `pages/_app.js` using `Lexend()`, injected globally as CSS variable
+**Reference constant:** `F` from `components/ui/tokens.js` → `"var(--font-lexend), sans-serif"`
 
 ### Type scale (`FS` from tokens)
 
@@ -464,6 +464,11 @@ When you add a new primitive to `components/ui/`:
 ## 10. Release Notes
 
 Changes to the system itself (not just uses of it). Add newest on top.
+
+### 2026-04-21
+
+- **Performance & Fonts:** Migrated from blocking Google Fonts `<link>` tag to `next/font/google`. Font is now bundled locally and injected via the `--font-lexend` CSS variable.
+- Updated `F` token and all inline styles to use `"var(--font-lexend), sans-serif"` to eliminate FOIT layout shifts.
 
 ### 2026-04-18
 

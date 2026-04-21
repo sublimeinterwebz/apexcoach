@@ -9,7 +9,7 @@
 - Mark **speculative** items with 🤔 so they're visually distinct from committed work
 - Touch the "Last updated" field on every edit
 
-**Last updated:** 2026-04-19 (commit `shared-day-mapping-helper`)
+**Last updated:** 2026-04-21 (commit `optimize fonts and a11y`)
 
 ---
 
@@ -33,6 +33,7 @@ Grouped by milestone. Most recent commits at the top within each section.
 
 | Item                                                        | Commit     |
 |-------------------------------------------------------------|------------|
+| Performance & A11y optimization: switched from blocking Google Fonts `<link>` to `next/font/google` injected globally via CSS variable (`var(--font-lexend)`) to eliminate FOIT and slash FCP/LCP. Added `pages/_document.js` with `lang="en"` to fix core accessibility score | `optimize fonts and a11y` |
 | Safe-parse `/api/generate-plan` responses across all 3 callers (onboarding, coach Sunday regen, profile rebuild). Previously, a Gemini timeout (Vercel 504) returned an HTML error page; `r.json()` threw `Unexpected token 'A'` and the user saw a cryptic parse error. Now callers check `r.ok`, wrap `r.json()` in try/catch, and show readable messages (e.g. "The AI took too long to respond. Please try again."). Profile edit additionally keeps the user on a dedicated error screen with Try Again / Back to Profile buttons instead of dumping them back to the form mid-failure | `safe-parse-plan-response` |
 | Unified "AI is building your plan" view across all three contexts — extracted Coach-tab GeneratingPhase into shared `components/ui/BuildingPhase.js` + `useBuildingProgress` hook. Onboarding first-plan screen (previously a spinner) and profile Save-and-Rebuild (previously a dim button) now show the same progress-ring + 5-step checklist pattern as Sunday regen, with copy adjusted per context (`BUILDING YOUR PLAN` / `BUILDING WEEK N` / `REBUILDING YOUR PLAN`) | `unified-building-phase` |
 | Add to Homescreen prompt — iOS Safari banner (step-by-step Share → Add to Home Screen) + Android `beforeinstallprompt` native install button. Auto-shows 2.5s after load, skips if already installed or dismissed (localStorage). Lives in `components/ui/InstallPrompt.js`, mounted globally in `_app.js` | `install-prompt` |
