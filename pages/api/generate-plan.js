@@ -3,6 +3,11 @@ export const config = { maxDuration: 60 };
 const exercisesData = require("../../data/exercises.json");
 const equipmentMap  = require("../../data/equipment_map.json");
 
+const COMPOUND_KEYWORDS = [
+  "press", "squat", "deadlift", "row", "pull-up", "chin-up", 
+  "push-up", "lunge", "dip", "clean", "snatch", "thruster"
+];
+
 // Build filtered exercise name list based on user's equipment
 function getExerciseNames(userEquipmentLabels) {
   const PRIORITY = ["barbell","dumbbell","cable","leverage machine","smith machine",
@@ -30,9 +35,22 @@ function getExerciseNames(userEquipmentLabels) {
       if (key.startsWith(equip + "|")) list.forEach(n => names.add(n));
     }
   }
-  return [...names];
-}
 
+  const compounds = [];
+  const isolations = [];
+
+  [...names].forEach(name => {
+    const isCompound = COMPOUND_KEYWORDS.some(kw => name.includes(kw));
+    // Guard against edge cases like french press
+    if (isCompound && !name.includes("french press") && !name.includes("tricep press")) {
+      compounds.push(name);
+    } else {
+      isolations.push(name);
+    }
+  });
+
+  return { compounds, isolations };
+}
 
 // ── TDEE Calculator (Mifflin-St Jeor) ────────────────────────────────
 function calculateTDEE(p) {
@@ -50,7 +68,7 @@ function calculateTDEE(p) {
     ? 10 * weightKg + 6.25 * heightCm - 5 * age - 161
     : 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
 
-  // Activity multiplier — combines job type + training frequency
+  // Activity multiplier
   const job = p.jobType || "sedentary";
   let multiplier;
   if      (job === "active")    multiplier = days >= 5 ? 1.9  : 1.725;
@@ -58,40 +76,37 @@ function calculateTDEE(p) {
   else /* sedentary */          multiplier = days >= 5 ? 1.55 : days >= 3 ? 1.375 : 1.2;
 
   const tdee = Math.round(bmr * multiplier);
-
-  // Goal-based adjustment
   const adj = { fat_loss: -400, muscle_gain: 300, maintain: 0 }[p.primaryGoal] || 0;
   return { tdee, target: tdee + adj, adj };
 }
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
-function buildPrompt(p) {
+function buildPayload(p) {
   const days          = parseInt(p.trainingDays) || 4;
   const injuries      = (p.injuries || []).filter(x => x && x !== "None").join(", ") || "none";
   const equip         = p.equipmentStr || (p.equipment || []).join(", ") || "standard gym equipment";
   const diet          = (p.dietaryPrefs || []).filter(x => x && x !== "No Restrictions").join(", ") || "no restrictions";
   const loc           = (p.workoutLocation || []).join("/") || "gym";
-  const specificDays     = (p.trainingDaysOfWeek || []).join(", ") || null;
-  // Build equipment labels list for exercise name filtering
-  const equipLabels      = [
+  const specificDays  = (p.trainingDaysOfWeek || []).join(", ") || null;
+  const styleLabel    = { bodybuilding:"Bodybuilding", powerlifting:"Powerlifting", calisthenics:"Calisthenics", cross_training:"Cross-training", general:"General Fitness" }[p.trainingStyle] || "General Fitness";
+  const durationLabel = p.sessionDuration || "60 min";
+
+  const equipLabels = [
     ...(p.gymEquipment  || []),
     ...(p.homeEquipment || []),
     ...(p.workoutLocation?.includes("Gym") || p.workoutLocation?.includes("Both") ? ["Full Commercial Gym"] : []),
   ];
-  const exerciseNameList = getExerciseNames(equipLabels.length ? equipLabels : ["Full Commercial Gym"]);
+  const exerciseNames = getExerciseNames(equipLabels.length ? equipLabels : ["Full Commercial Gym"]);
   const { tdee, target, adj } = calculateTDEE(p);
   const goalLabel = { fat_loss:"fat loss", muscle_gain:"muscle gain", maintain:"maintenance" }[p.primaryGoal] || "maintenance";
   const goal = `${goalLabel} — calculated TDEE: ${tdee} kcal/day, target: ${target} kcal/day (${adj >= 0 ? "+" : ""}${adj} kcal ${adj < 0 ? "deficit" : adj > 0 ? "surplus" : "maintenance"})`;
 
-  // Previous week context
   const lastWeekPlan     = p.lastWeekPlan     || "None (this is the first week)";
   const lastWeekFeedback = p.lastWeekFeedback
     ? `Difficulty: ${p.lastWeekFeedback.difficulty}, Energy: ${p.lastWeekFeedback.energy}, Completed workouts: ${p.lastWeekFeedback.completedWorkouts} of ${days}`
     : "None (this is the first week)";
 
-  // Previous week user edits — the user modified exercises last week
-  // Format as human-readable list so Gemini can honor their preferences
   const lastWeekEdits = Array.isArray(p.lastWeekEdits) && p.lastWeekEdits.length > 0
     ? p.lastWeekEdits.map(e => {
         if (e.type === "swap")    return `• User swapped "${e.from}" for "${e.to}" (${e.day}, ${e.block})`;
@@ -103,14 +118,23 @@ function buildPrompt(p) {
       }).filter(Boolean).join("\n")
     : null;
 
-  return `You are an elite fitness coach designing a personalized weekly training and nutrition plan.
+  const systemInstruction = `You are an elite fitness coach designing a personalized weekly training and nutrition plan.
+COACHING PHILOSOPHY — Apply these principles to every decision:
+- Think like a real coach, not a template generator. Every exercise, set, and rep range must fit this specific person.
+- Prioritize sustainability over perfection. A plan the user can stick to beats an optimal plan they abandon.
+- Avoid extreme or unrealistic programming. No 2-hour sessions for beginners. Honor their max session duration.
+- Every decision must have a reason. Volume, exercise choice, and progression should be deliberate and coherent — not random.
+- Nutrition should be practical. Provide 4-5 non-generic meal examples (breakfast, lunch, dinner, snack, pre/post workout).
+- Be realistic with meal prep: incorporate batch-prepped proteins, simple carb sources, and leftovers to make the diet achievable.`;
 
-User Profile:
+  const prompt = `User Profile:
 - Age: ${p.age}yr, Gender: ${p.gender}, Weight: ${p.weight}${p.weightUnit || "kg"}, Height: ${p.height}${p.heightUnit || "cm"}
 - Fitness Level: ${p.fitnessLevel || "beginner"}
 - Goal: ${goalLabel}
 - Calorie Target: ${target} kcal/day (TDEE: ${tdee}, adjustment: ${adj >= 0 ? "+" : ""}${adj})
 - Training Days: ${days} days/week${specificDays ? ' on ' + specificDays : ''}
+- Training Style: ${styleLabel}
+- Max Session Duration: ${durationLabel}
 - Location: ${loc}
 - Available Equipment: ${equip}
 - Injuries / Limitations: ${injuries}
@@ -137,8 +161,8 @@ Design a 7-day plan that mimics a real coach:
 1. Weekly Structure:
 - Exactly 7 days total, ordered Sunday through Saturday (Sunday is day 1, Saturday is day 7)
 - Exactly ${days} training days and ${7 - days} rest/recovery days${specificDays ? '. IMPORTANT: Schedule workouts ONLY on these specific days: ' + specificDays + '. All other days must be rest/recovery.' : ''}
-- Mix training styles if relevant (strength, hypertrophy, conditioning, mobility)
-- Place rest days strategically based on the training split
+- Style must reflect ${styleLabel} (e.g. Bodybuilding = hypertrophy focus, Powerlifting = SBD focus, etc.)
+- Keep workouts under the max duration of ${durationLabel}.
 
 2. Each Workout Must Include Structured Blocks:
 - warmup: 2-3 mobility + activation exercises
@@ -151,14 +175,18 @@ Design a 7-day plan that mimics a real coach:
 3. Exercise Selection:
 - ONLY use this equipment: ${equip}
 - STRICTLY avoid exercises that aggravate: ${injuries}
-- Vary exercises across the week (avoid repeating the same exercise in consecutive sessions)
 - Compound movements first, isolation later
-- EXERCISE NAMING: Use EXACT names from the reference list below whenever possible. Only invent a name if no suitable match exists. This ensures exercise demonstrations work correctly.
+- EXERCISE NAMING: Use EXACT names from the reference lists below whenever possible.
 
-Available exercise names for this user's equipment:
-${exerciseNameList.join(", ")}
+Available Exercises:
+- PRIMARY COMPOUNDS (Use these for the 'main' block):
+  ${exerciseNames.compounds.join(", ")}
 
-4. Progressive Overload Logic:
+- ACCESSORY / ISOLATION (Use these for 'accessory', 'warmup', or 'finisher'):
+  ${exerciseNames.isolations.join(", ")}
+
+4. Progressive Overload & RPE Logic:
+- Include RPE (Rate of Perceived Exertion) or RIR (Reps in Reserve) in the notes for main lifts to guide the user's intensity.
 - If previous week exists and user found it easy: increase sets, reps, or load
 - If user struggled: reduce volume slightly or simplify movements
 - If first week: set a solid baseline
@@ -171,96 +199,95 @@ ${exerciseNameList.join(", ")}
 ---
 
 NUTRITION INSTRUCTIONS
-
 - Goal: ${goalLabel}
 - Calorie Target: ${target} kcal/day (TDEE: ${tdee}, adjustment: ${adj >= 0 ? "+" : ""}${adj})
 - Diet: ${diet}
-- Provide daily calorie estimate and macro breakdown
-- Give 4-5 practical, non-generic meal examples (breakfast, lunch, dinner, snack, pre/post workout)
-- Keep it flexible and sustainable
+- Give 4-5 practical meal examples. Use batch prep realism (e.g. eating the same batch-cooked protein for lunch and dinner, or overnight oats for fast mornings) to make the meal plan sustainable for their stress and job level.`;
 
----
-
-COACHING PHILOSOPHY — Apply these principles to every decision:
-- Think like a real coach, not a template generator. Every exercise, set, and rep range must fit this specific person.
-- Prioritize sustainability over perfection. A plan the user can stick to beats an optimal plan they abandon.
-- Avoid extreme or unrealistic programming. No 2-hour sessions for beginners, no 6-day programs for someone with 3 available days.
-- Every decision must have a reason. Volume, exercise choice, and progression should be deliberate and coherent — not random.
-
----
-
-OUTPUT FORMAT — Return ONLY valid JSON. No text outside the JSON object.
-
-{
-  "weekPlan": [
-    {
-      "day": "Day 1",
-      "dayName": "Sunday",
-      "dayIndex": 0,
-      "type": "strength",
-      "focus": "Upper Body Push",
-      "muscleGroups": "Chest, Shoulders, Triceps",
-      "estimatedDuration": "60 min",
-      "blocks": {
-        "warmup": [
-          {"name": "Band Pull-Aparts", "details": "2x15, activate rear delts"}
-        ],
-        "main": [
-          {"name": "Barbell Bench Press", "sets": 4, "reps": "5", "restSeconds": 120, "notes": "Heavy — RPE 8"}
-        ],
-        "accessory": [
-          {"name": "Incline Dumbbell Press", "sets": 3, "reps": "10-12", "restSeconds": 75, "notes": ""}
-        ],
-        "finisher": [
-          {"name": "Push-up Burnout", "duration": "Max reps in 60s", "notes": ""}
-        ],
-        "core": [
-          {"name": "Plank", "sets": 3, "reps": "30s hold", "notes": ""}
-        ],
-        "cooldown": [
-          {"name": "Chest Doorway Stretch", "details": "30s each side"}
-        ]
-      }
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      weekPlan: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            day: { type: "STRING" },
+            dayName: { type: "STRING" },
+            dayIndex: { type: "INTEGER" },
+            type: { type: "STRING" },
+            focus: { type: "STRING" },
+            muscleGroups: { type: "STRING" },
+            estimatedDuration: { type: "STRING" },
+            blocks: {
+              type: "OBJECT",
+              properties: {
+                warmup: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, details: { type: "STRING" } }, required: ["name", "details"] } },
+                main: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, sets: { type: "INTEGER" }, reps: { type: "STRING" }, restSeconds: { type: "INTEGER" }, notes: { type: "STRING" } }, required: ["name", "sets", "reps", "restSeconds", "notes"] } },
+                accessory: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, sets: { type: "INTEGER" }, reps: { type: "STRING" }, restSeconds: { type: "INTEGER" }, notes: { type: "STRING" } }, required: ["name", "sets", "reps", "restSeconds", "notes"] } },
+                finisher: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, duration: { type: "STRING" }, notes: { type: "STRING" } }, required: ["name", "duration", "notes"] } },
+                core: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, sets: { type: "INTEGER" }, reps: { type: "STRING" }, notes: { type: "STRING" } }, required: ["name", "sets", "reps", "notes"] } },
+                cooldown: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, details: { type: "STRING" } }, required: ["name", "details"] } }
+              },
+              required: ["warmup", "main", "accessory", "finisher", "core", "cooldown"]
+            }
+          },
+          required: ["day", "dayName", "dayIndex", "type", "focus", "muscleGroups", "estimatedDuration", "blocks"]
+        }
+      },
+      progression: {
+        type: "OBJECT",
+        properties: {
+          strategy: { type: "STRING" },
+          nextWeekFocus: { type: "STRING" }
+        },
+        required: ["strategy", "nextWeekFocus"]
+      },
+      nutrition: {
+        type: "OBJECT",
+        properties: {
+          dailyCalories: { type: "INTEGER" },
+          macros: {
+            type: "OBJECT",
+            properties: { protein: { type: "INTEGER" }, carbs: { type: "INTEGER" }, fat: { type: "INTEGER" } },
+            required: ["protein", "carbs", "fat"]
+          },
+          mealPlans: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                dayIndex: { type: "INTEGER" },
+                dayName: { type: "STRING" },
+                type: { type: "STRING" },
+                meals: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      meal: { type: "STRING" },
+                      name: { type: "STRING" },
+                      example: { type: "STRING" },
+                      calories: { type: "INTEGER" },
+                      protein: { type: "INTEGER" }
+                    },
+                    required: ["meal", "name", "example", "calories", "protein"]
+                  }
+                }
+              },
+              required: ["dayIndex", "dayName", "type", "meals"]
+            }
+          },
+          tips: { type: "ARRAY", items: { type: "STRING" } }
+        },
+        required: ["dailyCalories", "macros", "mealPlans", "tips"]
+      },
+      coachNote: { type: "STRING" }
     },
-    {
-      "day": "Day 2",
-      "dayName": "Tuesday",
-      "dayIndex": 1,
-      "type": "rest",
-      "focus": "Rest & Recovery",
-      "muscleGroups": "",
-      "estimatedDuration": "",
-      "blocks": {
-        "warmup": [], "main": [], "accessory": [], "finisher": [], "core": [], "cooldown": []
-      }
-    }
-  ],
-  "progression": {
-    "strategy": "Brief explanation of how this week was designed relative to last week",
-    "nextWeekFocus": "What should change or progress next week"
-  },
-  "nutrition": {
-    "dailyCalories": 2400,
-    "macros": { "protein": 180, "carbs": 240, "fat": 80 },
-    "mealPlans": [
-      {"dayIndex": 0, "dayName": "Sunday", "type": "training", "meals": [
-        {"meal": "Breakfast", "name": "Scrambled Eggs & Oats", "example": "3 scrambled eggs, 80g oats, banana", "calories": 520, "protein": 38},
-        {"meal": "Lunch", "name": "Chicken Rice Bowl", "example": "200g chicken, 150g rice, salad", "calories": 650, "protein": 52},
-        {"meal": "Pre-Workout", "name": "Protein Shake", "example": "25g whey, banana", "calories": 200, "protein": 22},
-        {"meal": "Dinner", "name": "Salmon & Sweet Potato", "example": "180g salmon, 200g sweet potato", "calories": 680, "protein": 45},
-        {"meal": "Snack", "name": "Greek Yogurt", "example": "200g Greek yogurt, nuts", "calories": 300, "protein": 18}
-      ]},
-      {"dayIndex": 1, "dayName": "Tuesday", "type": "rest", "meals": [...]},
-      ... (7 days total, ALL different meals)
-    ],
-    "tips": [
-      "Drink 2.5–3L of water daily",
-      "Eat your largest carb meal around your workout",
-      "Prioritize protein at every meal to hit your daily target"
-    ]
-  },
-  "coachNote": "One direct, personal coaching note for this specific user based on their profile and goals"
-}`;
+    required: ["weekPlan", "progression", "nutrition", "coachNote"]
+  };
+
+  return { systemInstruction, prompt, responseSchema };
 }
 
 export default async function handler(req, res) {
@@ -268,19 +295,25 @@ export default async function handler(req, res) {
   if (!GEMINI_KEY) return res.status(500).json({ error: "GEMINI_API_KEY not set in Vercel environment variables." });
 
   const profile = req.body;
-  const prompt  = buildPrompt(profile);
+  const { systemInstruction, prompt, responseSchema }  = buildPayload(profile);
 
   for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-lite"]) {
     try {
       console.log("Trying:", model);
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.6, maxOutputTokens: 12000 },
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: { 
+              temperature: 0.6, 
+              maxOutputTokens: 12000,
+              responseMimeType: "application/json",
+              responseSchema: responseSchema
+            },
           }),
         }
       );
@@ -288,11 +321,12 @@ export default async function handler(req, res) {
       if (!r.ok) { console.error(model, r.status, data?.error?.message); continue; }
       const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
       if (!text) { console.error(model, "empty"); continue; }
+      
       const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
       const plan  = JSON.parse(clean);
       console.log("Success:", model);
 
-      // Fire-and-forget push notification — non-blocking, never fails the response
+      // Fire-and-forget push notification
       const fcmTokens = profile?.fcmTokens || (profile?.fcmToken ? [profile.fcmToken] : []);
       const week      = (profile?.currentWeek || 0) + 1;
       if (fcmTokens.length && profile?.uid) {

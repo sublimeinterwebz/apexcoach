@@ -89,7 +89,9 @@ export default function ProfileSummary() {
           <DetailRow label="Height"   value={height}   />
           <DetailRow label="Location" value={loc}      />
           <DetailRow label="Age"      value={profile?.age ? `${profile.age} yrs` : "—"} />
-          <DetailRow label="Gender"   value={profile?.gender || "—"} last />
+          <DetailRow label="Gender"   value={profile?.gender || "—"} />
+          <DetailRow label="Style"    value={profile?.trainingStyle ? profile.trainingStyle.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase()) : "—"} />
+          <DetailRow label="Max Time" value={profile?.sessionDuration || "—"} last />
         </Card>
 
         {/* Edit button */}

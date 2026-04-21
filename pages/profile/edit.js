@@ -97,9 +97,11 @@ export default function Profile() {
     jobType:           profile?.jobType        || "",
     sleepHours:        profile?.sleepHours     || "",
     stressLevel:       profile?.stressLevel    || "",
+    sessionDuration:   profile?.sessionDuration|| "",
     trainingDays:      profile?.trainingDays   || "",
     trainingDaysOfWeek:profile?.trainingDaysOfWeek || [],
     primaryGoal:       profile?.primaryGoal    || "",
+    trainingStyle:     profile?.trainingStyle  || "",
     targetWeight:      profile?.targetWeight   || "",
     workoutLocation:   profile?.workoutLocation || [],
     gymEquipment:      profile?.gymEquipment   || [],
@@ -113,8 +115,8 @@ export default function Profile() {
   // Detect if user has actually changed anything
   const isDirty = (() => {
     const keys = ["age","gender","weight","weightUnit","height","heightUnit","bodyFat",
-      "fitnessLevel","medicalConditions","jobType","sleepHours","stressLevel",
-      "trainingDays","primaryGoal","targetWeight","equipmentOther"];
+      "fitnessLevel","medicalConditions","jobType","sleepHours","stressLevel","sessionDuration",
+      "trainingDays","primaryGoal","trainingStyle","targetWeight","equipmentOther"];
     for (const k of keys) {
       if (String(form[k]||"") !== String(profile?.[k]||"")) return true;
     }
@@ -468,6 +470,13 @@ function StepLifestyle({ form, setField, toggleArr }) {
         </div>
       </div>
 
+      <div>
+        <Label>Max Session Duration</Label>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {["30 min","45 min","60 min","90+ min"].map(v=><ChipBtn key={v} label={v} active={form.sessionDuration===v} onClick={()=>setField("sessionDuration",v)} />)}
+        </div>
+      </div>
+
       {/* Training days count */}
       <div>
         <Label>Training Days per Week</Label>
@@ -539,6 +548,19 @@ function StepGoals({ form, setField, toggleArr }) {
             {value:"muscle_gain", label:"Muscle Gain",     desc:"Build size and strength"},
             {value:"maintain",    label:"Maintain & Tone", desc:"Stay fit, improve definition"},
           ].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v=>setField("primaryGoal",v)} />)}
+        </div>
+      </div>
+
+      <div>
+        <Label>Training Modality / Style</Label>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[
+            {value:"bodybuilding",  label:"Bodybuilding",   desc:"Focus on muscle size and aesthetics"},
+            {value:"powerlifting",  label:"Powerlifting",   desc:"Focus on maximum strength (SBD)"},
+            {value:"calisthenics",  label:"Calisthenics",   desc:"Bodyweight mastery and control"},
+            {value:"cross_training",label:"Cross-training", desc:"Mix of strength, cardio, and agility"},
+            {value:"general",       label:"General Fitness",desc:"Overall health and longevity"},
+          ].map(o=><RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.trainingStyle===o.value} onClick={v=>setField("trainingStyle",v)} />)}
         </div>
       </div>
       <div>

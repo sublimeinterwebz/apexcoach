@@ -35,9 +35,9 @@ function buildForm() {
   return {
     age:"", gender:"", weight:70, weightUnit:"kg", height:170, heightUnit:"cm", bodyFat:"",
     fitnessLevel:"", injuries:[], medicalConditions:"",
-    jobType:"", sleepHours:"", stressLevel:"",
+    jobType:"", sleepHours:"", stressLevel:"", sessionDuration:"",
     trainingDays:"", trainingDaysOfWeek:[],
-    primaryGoal:"", targetWeight:"",
+    primaryGoal:"", trainingStyle:"", targetWeight:"",
     workoutLocation:[], gymEquipment:[], homeEquipment:[], equipmentOther:"",
     dietaryPrefs:[],
   };
@@ -836,6 +836,13 @@ function StepLifestyle({ form, setField, toggleArr }) {
         </div>
       </div>
 
+      <div>
+        <Label>Max Session Duration</Label>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {["30 min","45 min","60 min","90+ min"].map(v => <ChipBtn key={v} label={v} active={form.sessionDuration===v} onClick={() => setField("sessionDuration",v)} />)}
+        </div>
+      </div>
+
       {/* ── How many training days ── */}
       <div>
         <Label>Training Days per Week</Label>
@@ -916,6 +923,19 @@ function StepGoals({ form, setField, toggleArr }) {
             {value:"muscle_gain", label:"Muscle Gain",    desc:"Build size and strength"},
             {value:"maintain",    label:"Maintain & Tone",desc:"Stay fit, improve definition"},
           ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.primaryGoal===o.value} onClick={v=>setField("primaryGoal",v)} />)}
+        </div>
+      </div>
+
+      <div>
+        <Label>Training Modality / Style</Label>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {[
+            {value:"bodybuilding",  label:"Bodybuilding",   desc:"Focus on muscle size and aesthetics"},
+            {value:"powerlifting",  label:"Powerlifting",   desc:"Focus on maximum strength (SBD)"},
+            {value:"calisthenics",  label:"Calisthenics",   desc:"Bodyweight mastery and control"},
+            {value:"cross_training",label:"Cross-training", desc:"Mix of strength, cardio, and agility"},
+            {value:"general",       label:"General Fitness",desc:"Overall health and longevity"},
+          ].map(o => <RadioCard key={o.value} value={o.value} label={o.label} desc={o.desc} active={form.trainingStyle===o.value} onClick={v=>setField("trainingStyle",v)} />)}
         </div>
       </div>
 
