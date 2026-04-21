@@ -8,7 +8,7 @@
 - Never delete history blindly — move obsolete sections to a `## Deprecated` block at the bottom with a dated note
 - Touch the "Last updated" line below whenever you edit
 
-**Last updated:** 2026-04-21 (commit `5120f63`)
+**Last updated:** 2026-04-21
 
 ---
 
@@ -56,10 +56,12 @@ pages/
 │   ├── index.js         Profile summary (avatar, stats, details, edit link, logout)
 │   └── edit.js          Full 4-step profile edit flow (moved from /profile.js)
 └── api/
-    ├── generate-plan.js   Gemini plan generation, TDEE calc, edits context
-    ├── adjust-plan.js     One-shot plan adjustment (used by onboarding review)
-    ├── chat.js            Gemini chat for Ask Coach
-    └── exercise-gif.js    Local name→ID lookup + RapidAPI GIF fetch proxy
+    ├── generate-plan.js       Gemini plan generation, TDEE calc, edits context
+    ├── adjust-plan.js         One-shot plan adjustment (used by onboarding review)
+    ├── chat.js                Gemini chat for Ask Coach
+    ├── exercise-gif.js        Local name→ID lookup + RapidAPI GIF fetch proxy
+    ├── send-notification.js   Custom push notification sender (single / multi / broadcast)
+    └── test-notification.js   Smoke test for push notifications
 
 components/
 ├── shared.js            Legacy shared UI: Screen, Label, RadioCard, C (colors), BottomNav wrapper mapping legacy active keys → new 3-tab
@@ -436,6 +438,7 @@ Documenting these saves future sessions debugging time.
 | Client hook | `lib/useFCM.js` | Permission request (gesture-gated), token capture, token saved to `users/{uid}.fcmTokens` |
 | Background SW | `public/firebase-messaging-sw.js` | Receives push when app is closed/backgrounded, calls `showNotification()` |
 | Server helper | `lib/firebaseAdmin.js` | `sendPushNotification()` — sends to all tokens for a user, auto-removes stale ones |
+| Send endpoint | `pages/api/send-notification.js` | `POST /api/send-notification` — custom notifications to single user (`uid`), multiple users (`uids`), or broadcast (`all: true`). Returns per-user delivery report |
 | Test endpoint | `pages/api/test-notification.js` | `GET /api/test-notification?uid=<uid>` — smoke test for any user |
 | Plan trigger | `pages/api/generate-plan.js` | Fires "New plan ready" notification after Gemini returns a plan |
 
@@ -468,7 +471,33 @@ We removed the in-app foreground toast. All notifications — foreground and bac
 
 ### 13.4 Sending notifications
 
-**To a single user:**
+**Via API endpoint (recommended for manual sends):**
+
+`POST /api/send-notification` accepts a JSON body with `title`, `body`, optional `link`, and one of:
+- `uid` — single user
+- `uids` — array of user IDs
+- `all: true` — broadcast to all onboarded users with tokens
+
+```bash
+# Single user
+curl -X POST https://apexcoach-rho.vercel.app/api/send-notification \
+  -H "Content-Type: application/json" \
+  -d '{"uid": "USER_UID", "title": "Hey! 💪", "body": "Your plan is updated."}'
+
+# Multiple users
+curl -X POST https://apexcoach-rho.vercel.app/api/send-notification \
+  -H "Content-Type: application/json" \
+  -d '{"uids": ["uid1", "uid2"], "title": "New Feature 🚀", "body": "Check it out."}'
+
+# Broadcast
+curl -X POST https://apexcoach-rho.vercel.app/api/send-notification \
+  -H "Content-Type: application/json" \
+  -d '{"all": true, "title": "Announcement 🎉", "body": "V2 is live!"}'
+```
+
+Returns a per-user delivery report: `{ success, totalTargeted, sent, skipped, failed, details }`.
+
+**Via code (inside another API route or server function):**
 ```js
 import { sendPushNotification } from "../../lib/firebaseAdmin";
 import admin from "firebase-admin";
@@ -483,38 +512,6 @@ await sendPushNotification({
   body:  "Your message body",
   link:  "/dashboard",  // where tapping the notification opens
 });
-```
-
-**To all users (broadcast):**
-```js
-const usersSnap = await admin.firestore().collection("users").get();
-for (const doc of usersSnap.docs) {
-  const tokens = doc.data()?.fcmTokens || [];
-  if (!tokens.length) continue;
-  await sendPushNotification({
-    uid:    doc.id,
-    tokens,
-    title:  "Broadcast title",
-    body:   "Broadcast body",
-    link:   "/dashboard",
-  });
-}
-```
-
-**To a filtered segment (e.g. users who haven't logged a workout this week):**
-```js
-// Query users where currentWeek matches and no log exists
-const snap = await admin.firestore()
-  .collection("users")
-  .where("onboardingComplete", "==", true)
-  .get();
-
-for (const doc of snap.docs) {
-  const tokens = doc.data()?.fcmTokens || [];
-  if (!tokens.length) continue;
-  // add your filter logic here
-  await sendPushNotification({ uid: doc.id, tokens, title: "...", body: "..." });
-}
 ```
 
 ### 13.5 Adding new notification triggers
